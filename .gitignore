@@ -10,8 +10,7 @@ venv/
 ENV/
 
 # Project runtime data
-data/temp/
-data/guild_settings.json
+data/
 *.mp3
 *.wav
 
