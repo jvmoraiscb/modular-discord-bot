@@ -97,8 +97,9 @@ class TTSEngine:
         mixed_path = self.temp_dir / mixed_filename
 
         filter_complex = (
-            f"[1:a]adelay={delay_ms}|{delay_ms}[delayed];"
-            f"[0:a][delayed]amix=inputs=2:duration=longest:normalize=0"
+            f"[0:a]aresample=48000,aformat=sample_fmts=s16:channel_layouts=stereo,volume=0.85[a0];"
+            f"[1:a]aresample=48000,aformat=sample_fmts=s16:channel_layouts=stereo,volume=0.95,adelay={delay_ms}|{delay_ms}[a1];"
+            f"[a0][a1]amix=inputs=2:duration=longest:normalize=0,alimiter=limit=0.95[out]"
         )
         cmd = [
             ffmpeg_path,
@@ -106,6 +107,9 @@ class TTSEngine:
             "-i", str(intro_path),
             "-i", str(speech_path),
             "-filter_complex", filter_complex,
+            "-map", "[out]",
+            "-ar", "48000",
+            "-ac", "2",
             "-loglevel", "error",
             str(mixed_path),
         ]

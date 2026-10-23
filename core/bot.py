@@ -182,10 +182,11 @@ class ModularBot(commands.Bot):
 
             # Stop TTS playback if active
             tts_service = self.service_manager.services.get("tts")
-            if tts_service and hasattr(tts_service, "voice_queues"):
-                vq = tts_service.voice_queues.get(guild.id)
-                if vq:
-                    vq.stop()
+            if tts_service:
+                if hasattr(tts_service, "players") and guild.id in tts_service.players:
+                    await tts_service.players[guild.id].stop()
+                elif hasattr(tts_service, "voice_queues") and guild.id in tts_service.voice_queues:
+                    await tts_service.voice_queues[guild.id].stop()
 
             ch_name = vc.channel.name if vc.channel else "voice"
             await vc.disconnect(force=True)

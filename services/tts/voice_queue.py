@@ -109,15 +109,17 @@ class GuildVoicePlayer:
                         logger.error("Error during voice playback in guild %s: %s", self.guild_id, error)
                     self.bot.loop.call_soon_threadsafe(self._playback_event.set)
 
-                # Initialize FFmpeg audio source
-                audio_source = discord.FFmpegPCMAudio(
+                # Initialize FFmpeg audio source with safe volume level to prevent clipping
+                raw_source = discord.FFmpegPCMAudio(
                     executable=self.ffmpeg_path,
                     source=str(item.file_path),
                     options="-loglevel error",
                 )
+                audio_source = discord.PCMVolumeTransformer(raw_source, volume=0.9)
 
                 if not vc or not vc.is_connected():
                     logger.warning("Bot disconnected from voice in guild %s. Discarding audio item.", self.guild_id)
+                    audio_source.cleanup()
                     self._cleanup_file(item.file_path, item.is_temporary)
                     self.current_item = None
                     self.queue.task_done()

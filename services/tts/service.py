@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Optional
@@ -81,6 +82,60 @@ class TTSService(BaseService):
         super().__init__(bot, config)
         self.engine = TTSEngine()
         self.players: Dict[int, GuildVoicePlayer] = {}
+        self._connect_locks: Dict[int, asyncio.Lock] = {}
+
+    def _get_connect_lock(self, guild_id: int) -> asyncio.Lock:
+        """Retrieves or creates an asyncio.Lock per guild to serialize voice connections."""
+        if guild_id not in self._connect_locks:
+            self._connect_locks[guild_id] = asyncio.Lock()
+        return self._connect_locks[guild_id]
+
+    async def _ensure_voice_connection(
+        self, guild: discord.Guild, target_channel: discord.VoiceChannel
+    ) -> Optional[discord.VoiceClient]:
+        """Ensures safe, serialized connection to the target voice channel without race conditions."""
+        async with self._get_connect_lock(guild.id):
+            vc = guild.voice_client
+
+            if vc:
+                if vc.is_connected():
+                    if vc.channel and vc.channel.id != target_channel.id:
+                        try:
+                            await vc.move_to(target_channel)
+                        except Exception as e:
+                            logger.error(
+                                "Failed to move to voice channel %s in guild %s: %s",
+                                target_channel.id,
+                                guild.id,
+                                e,
+                            )
+                    return vc
+                else:
+                    # Stale or disconnected client; clean up safely without interrupting active gateway
+                    try:
+                        await vc.disconnect(force=True)
+                    except Exception:
+                        pass
+                    await asyncio.sleep(0.2)
+
+            try:
+                return await target_channel.connect(reconnect=True, timeout=15.0)
+            except discord.ClientException:
+                vc = guild.voice_client
+                if vc and vc.is_connected() and vc.channel and vc.channel.id != target_channel.id:
+                    try:
+                        await vc.move_to(target_channel)
+                    except Exception:
+                        pass
+                return vc
+            except Exception as e:
+                logger.error(
+                    "Failed to connect to voice channel %s in guild %s: %s",
+                    target_channel.id,
+                    guild.id,
+                    e,
+                )
+                return None
 
     def get_player(self, guild: discord.Guild) -> GuildVoicePlayer:
         """Retrieves or instantiates the voice player manager for a guild."""
@@ -166,42 +221,15 @@ class TTSService(BaseService):
             return None
 
         target_channel = user.voice.channel
-        vc = interaction.guild.voice_client
-
-        # If already connected to a voice channel
-        if vc:
-            if vc.is_connected():
-                if vc.channel and vc.channel.id != target_channel.id:
-                    try:
-                        await vc.move_to(target_channel)
-                    except Exception as e:
-                        logger.error("Failed to move to voice channel %s in guild %s: %s", target_channel.id, interaction.guild.id, e)
-                return vc
-            else:
-                try:
-                    await vc.disconnect(force=True)
-                except Exception:
-                    pass
-
-        # Connect to voice channel
-        try:
-            return await target_channel.connect(reconnect=True, timeout=15.0)
-        except discord.ClientException:
-            vc = interaction.guild.voice_client
-            if vc and vc.channel and vc.channel.id != target_channel.id:
-                try:
-                    await vc.move_to(target_channel)
-                except Exception:
-                    pass
-            return vc
-        except Exception as e:
-            logger.error("Failed to connect to voice channel %s in guild %s: %s", target_channel.id, interaction.guild.id, e)
-            msg = f"Unable to connect to voice channel `{target_channel.name}`: {e}"
+        vc = await self._ensure_voice_connection(interaction.guild, target_channel)
+        if not vc:
+            msg = f"Unable to connect to voice channel `{target_channel.name}`."
             if interaction.response.is_done():
                 await interaction.followup.send(msg, ephemeral=True)
             else:
                 await interaction.response.send_message(msg, ephemeral=True)
             return None
+        return vc
 
     # Autocomplete handler for popular voice names
     async def _voice_autocomplete(
@@ -597,39 +625,9 @@ class TTSService(BaseService):
         vc = message.guild.voice_client
 
         if author_channel:
-            # If already connected, move to author's voice channel if different
-            if vc:
-                if not vc.is_connected():
-                    try:
-                        await vc.disconnect(force=True)
-                    except Exception:
-                        pass
-                    vc = None
-                elif vc.channel and vc.channel.id != author_channel.id:
-                    try:
-                        await vc.move_to(author_channel)
-                    except Exception as e:
-                        logger.error(
-                            "Failed to move to voice channel %s in guild %s: %s",
-                            author_channel.id,
-                            message.guild.id,
-                            e,
-                        )
-
-            # If not connected, join the author's voice channel
-            if not vc or not vc.is_connected():
-                try:
-                    vc = await author_channel.connect(reconnect=True, timeout=15.0)
-                except discord.ClientException:
-                    vc = message.guild.voice_client
-                except Exception as e:
-                    logger.error(
-                        "Failed to connect to voice channel %s in guild %s: %s",
-                        author_channel.id,
-                        message.guild.id,
-                        e,
-                    )
-                    return
+            vc = await self._ensure_voice_connection(message.guild, author_channel)
+            if not vc:
+                return
         else:
             # Author is not in a voice channel; only proceed if bot is already connected
             if not vc or not vc.is_connected():
