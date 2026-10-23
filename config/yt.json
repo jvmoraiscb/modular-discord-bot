@@ -1,0 +1,6 @@
+{
+  "enabled": true,
+  "default_volume": 10,
+  "ffmpeg_path": "ffmpeg",
+  "max_queue_size": 100
+}

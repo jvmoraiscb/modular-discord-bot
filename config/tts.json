@@ -1,0 +1,12 @@
+{
+  "enabled": true,
+  "default_voice": "pt-BR-FranciscaNeural",
+  "default_speed": 1.0,
+  "intro_sound": "none",
+  "intro_delay": 1.0,
+  "sounds_dir": "assets/sounds",
+  "max_text_length": 500,
+  "filter_urls": true,
+  "read_bot_messages": false,
+  "ffmpeg_path": "ffmpeg"
+}

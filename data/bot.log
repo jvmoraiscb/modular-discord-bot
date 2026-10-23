@@ -1,0 +1,440 @@
+2026-10-23 14:46:30 [INFO] bot.main: Starting Modular Discord Bot...
+2026-10-23 14:46:30 [INFO] bot.guild_store: Successfully loaded guild settings from data/guild_settings.json
+2026-10-23 14:46:30 [INFO] discord.client: logging in using static token
+2026-10-23 14:46:31 [INFO] bot.core: Loading modular services...
+2026-10-23 14:46:31 [INFO] bot.service_manager: Detected services: ['music', 'tts']
+2026-10-23 14:46:31 [INFO] bot.service_manager: Service 'music' loaded successfully!
+2026-10-23 14:46:31 [INFO] bot.service_manager: Service 'tts' loaded successfully!
+2026-10-23 14:46:31 [INFO] bot.core: Synchronizing application commands (Slash Commands)...
+2026-10-23 14:46:32 [INFO] bot.core: 10 application commands synchronized globally.
+2026-10-23 14:46:35 [INFO] bot.core: Bot connected as jvmoraiscb-bot#2417 (ID: 1563220529731866674)
+2026-10-23 14:46:35 [INFO] bot.core: Connected to 1 guild(s)
+2026-10-23 14:46:36 [INFO] bot.core: Instantly synchronized 10 commands to guild acabou o rap (1527352382802100264).
+2026-10-23 14:49:10 [INFO] bot.main: Shutdown signal received. Disconnecting...
+2026-10-23 14:49:10 [INFO] bot.main: Shutdown signal received. Disconnecting...
+2026-10-23 14:49:10 [ERROR] asyncio: Task was destroyed but it is pending!
+task: <Task pending name='Task-16' coro=<BotBase.close() running at /home/jvmoraiscb/git-repositories/discord-bot/.venv/lib/python3.14/site-packages/discord/ext/commands/bot.py:244>>
+2026-10-23 14:49:15 [INFO] bot.main: Starting Modular Discord Bot...
+2026-10-23 14:49:15 [INFO] bot.guild_store: Successfully loaded guild settings from data/guild_settings.json
+2026-10-23 14:49:15 [INFO] discord.client: logging in using static token
+2026-10-23 14:49:15 [INFO] bot.core: Loading modular services...
+2026-10-23 14:49:15 [INFO] bot.service_manager: Detected services: ['music', 'tts']
+2026-10-23 14:49:16 [INFO] bot.service_manager: Service 'music' loaded successfully!
+2026-10-23 14:49:16 [INFO] bot.service_manager: Service 'tts' loaded successfully!
+2026-10-23 14:49:16 [INFO] bot.core: Synchronizing application commands (Slash Commands)...
+2026-10-23 14:49:16 [INFO] bot.core: 10 application commands synchronized globally.
+2026-10-23 14:49:20 [INFO] bot.core: Bot connected as jvmoraiscb-bot#2417 (ID: 1563220529731866674)
+2026-10-23 14:49:20 [INFO] bot.core: Connected to 1 guild(s)
+2026-10-23 14:49:20 [INFO] bot.core: Instantly synchronized 10 commands to guild acabou o rap (1527352382802100264).
+2026-10-23 14:51:44 [INFO] discord.voice_state: Connecting to voice...
+2026-10-23 14:51:44 [INFO] discord.voice_state: Starting voice handshake... (connection attempt 1)
+2026-10-23 14:51:45 [INFO] discord.voice_state: Voice handshake complete. Endpoint found: c-gru17-9cd9b3cb.discord.media:8443
+2026-10-23 14:51:45 [INFO] discord.voice_state: Voice connection complete.
+2026-10-23 14:51:47 [INFO] bot.service.music.queue: Started playing 'LUCKHAOS - É a união FLASCO (O retorno do shittrap) (Prod. Haku)' in guild 1527352382802100264
+2026-10-23 14:52:06 [INFO] discord.player: ffmpeg process 57172 has not terminated. Waiting to terminate...
+2026-10-23 14:52:06 [INFO] discord.player: ffmpeg process 57172 should have terminated with a return code of -9.
+2026-10-23 14:53:36 [INFO] bot.service.music.queue: Started playing 'LUCKHAOS - É a união FLASCO (O retorno do shittrap) (Prod. Haku)' in guild 1527352382802100264
+2026-10-23 14:54:58 [INFO] discord.player: ffmpeg process 57622 has not terminated. Waiting to terminate...
+2026-10-23 14:54:58 [INFO] discord.player: ffmpeg process 57622 should have terminated with a return code of -9.
+2026-10-23 14:58:02 [INFO] bot.service.music.queue: Started playing 'LUCKHAOS - Teoria da Terra Cumbuca (Clipe Oficial)' in guild 1527352382802100264
+2026-10-23 14:59:54 [INFO] bot.main: Shutdown signal received. Disconnecting...
+2026-10-23 14:59:54 [INFO] discord.voice_state: The voice handshake is being terminated for Channel ID 1527352384744067145 (Guild ID 1527352382802100264)
+2026-10-23 14:59:54 [INFO] discord.player: ffmpeg process 58551 has not terminated. Waiting to terminate...
+2026-10-23 14:59:54 [WARNING] bot.service.music.queue: Voice client disconnected for guild 1527352382802100264. Clearing music queue.
+2026-10-23 14:59:54 [INFO] discord.player: ffmpeg process 58551 should have terminated with a return code of -9.
+2026-10-23 14:59:54 [INFO] bot.main: Shutdown signal received. Disconnecting...
+2026-10-23 14:59:54 [ERROR] asyncio: Task was destroyed but it is pending!
+task: <Task pending name='Task-179' coro=<BotBase.close() running at /home/jvmoraiscb/git-repositories/discord-bot/.venv/lib/python3.14/site-packages/discord/ext/commands/bot.py:244>>
+2026-10-23 14:59:54 [ERROR] asyncio: Task was destroyed but it is pending!
+task: <Task pending name='Task-178' coro=<GuildMusicPlayer._idle_disconnect() done, defined at /home/jvmoraiscb/git-repositories/discord-bot/services/music/music_queue.py:163> wait_for=<Future pending cb=[Task.task_wakeup()]>>
+2026-10-23 15:00:01 [INFO] bot.main: Starting Modular Discord Bot...
+2026-10-23 15:00:01 [INFO] bot.guild_store: Successfully loaded guild settings from data/guild_settings.json
+2026-10-23 15:00:01 [INFO] discord.client: logging in using static token
+2026-10-23 15:00:01 [INFO] bot.core: Loading modular services...
+2026-10-23 15:00:01 [INFO] bot.service_manager: Detected services: ['tts', 'yt']
+2026-10-23 15:00:01 [INFO] bot.service_manager: Service 'tts' loaded successfully!
+2026-10-23 15:00:01 [INFO] bot.service_manager: Service 'yt' loaded successfully!
+2026-10-23 15:00:01 [INFO] bot.core: Synchronizing application commands (Slash Commands)...
+2026-10-23 15:00:02 [INFO] bot.core: 3 application commands synchronized globally.
+2026-10-23 15:00:06 [INFO] bot.core: Bot connected as jvmoraiscb-bot#2417 (ID: 1563220529731866674)
+2026-10-23 15:00:06 [INFO] bot.core: Connected to 1 guild(s)
+2026-10-23 15:00:06 [INFO] bot.core: Instantly synchronized 3 commands to guild acabou o rap (1527352382802100264).
+2026-10-23 15:02:05 [INFO] discord.voice_state: Connecting to voice...
+2026-10-23 15:02:05 [INFO] discord.voice_state: Starting voice handshake... (connection attempt 1)
+2026-10-23 15:02:06 [INFO] discord.voice_state: Voice handshake complete. Endpoint found: c-gru17-9cd9b3cb.discord.media:8443
+2026-10-23 15:02:06 [INFO] discord.voice_state: Voice connection complete.
+2026-10-23 15:02:09 [INFO] bot.service.yt.queue: Started playing 'LUCKHAOS - Teoria da Terra Cumbuca (Clipe Oficial)' in guild 1527352382802100264
+2026-10-23 15:05:20 [INFO] discord.voice_state: The voice handshake is being terminated for Channel ID 1527352384744067145 (Guild ID 1527352382802100264)
+2026-10-23 15:05:20 [INFO] discord.player: ffmpeg process 59508 has not terminated. Waiting to terminate...
+2026-10-23 15:05:20 [WARNING] bot.service.yt.queue: Voice client disconnected for guild 1527352382802100264. Clearing YouTube queue.
+2026-10-23 15:05:20 [INFO] discord.player: ffmpeg process 59508 should have terminated with a return code of -9.
+2026-10-23 15:05:20 [ERROR] bot.service.tts.voice_queue: Unexpected error in audio playback loop for guild 1527352382802100264: Not connected to voice.
+Traceback (most recent call last):
+  File "/home/jvmoraiscb/git-repositories/discord-bot/services/tts/voice_queue.py", line 108, in _process_queue
+    vc.play(audio_source, after=after_playback)
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jvmoraiscb/git-repositories/discord-bot/.venv/lib/python3.14/site-packages/discord/voice_client.py", line 516, in play
+    raise ClientException('Not connected to voice.')
+discord.errors.ClientException: Not connected to voice.
+2026-10-23 15:05:20 [WARNING] bot.service.tts.voice_queue: Bot disconnected from voice in guild 1527352382802100264. Discarding audio item.
+2026-10-23 15:05:20 [INFO] discord.player: ffmpeg process 60191 has not terminated. Waiting to terminate...
+2026-10-23 15:05:20 [INFO] discord.player: ffmpeg process 60191 should have terminated with a return code of -9.
+2026-10-23 15:05:23 [INFO] discord.voice_state: Connecting to voice...
+2026-10-23 15:05:23 [INFO] discord.voice_state: Starting voice handshake... (connection attempt 1)
+2026-10-23 15:05:23 [INFO] discord.voice_state: Voice handshake complete. Endpoint found: c-gru17-9cd9b3cb.discord.media:8443
+2026-10-23 15:05:24 [INFO] discord.voice_state: Voice connection complete.
+2026-10-23 15:05:32 [INFO] discord.player: ffmpeg process 60249 successfully terminated with return code of 0.
+2026-10-23 15:05:51 [INFO] bot.service.yt.queue: Started playing 'LUCKHAOS - É a União Flasco (feat. Lucas Hype) [Clipe Oficial]' in guild 1527352382802100264
+2026-10-23 15:06:17 [INFO] discord.player: ffmpeg process 60392 has not terminated. Waiting to terminate...
+2026-10-23 15:06:17 [INFO] discord.player: ffmpeg process 60392 should have terminated with a return code of -9.
+2026-10-23 15:06:21 [INFO] discord.player: ffmpeg process 60546 successfully terminated with return code of 0.
+2026-10-23 15:07:29 [INFO] bot.service.yt.queue: Started playing 'LUCKHAOS - Teoria da Terra Cumbuca (Clipe Oficial)' in guild 1527352382802100264
+2026-10-23 15:09:36 [INFO] discord.player: ffmpeg process 60859 successfully terminated with return code of 0.
+2026-10-23 15:09:57 [INFO] discord.player: ffmpeg process 61490 successfully terminated with return code of 0.
+2026-10-23 15:11:12 [INFO] bot.service.yt.queue: Started playing 'KIT SALVE DA QUEBRADA- Versão anos 50 🍷' in guild 1527352382802100264
+2026-10-23 15:12:46 [INFO] discord.player: ffmpeg process 61779 successfully terminated with return code of 0.
+2026-10-23 15:12:50 [INFO] discord.player: ffmpeg process 62320 successfully terminated with return code of 0.
+2026-10-23 15:12:51 [INFO] bot.main: Shutdown signal received. Disconnecting...
+2026-10-23 15:12:51 [INFO] discord.voice_state: The voice handshake is being terminated for Channel ID 1527352384744067145 (Guild ID 1527352382802100264)
+2026-10-23 15:13:17 [INFO] bot.main: Starting Modular Discord Bot...
+2026-10-23 15:13:17 [INFO] bot.guild_store: Successfully loaded guild settings from data/guild_settings.json
+2026-10-23 15:13:17 [INFO] discord.client: logging in using static token
+2026-10-23 15:13:18 [INFO] bot.core: Loading modular services...
+2026-10-23 15:13:18 [INFO] bot.service_manager: Detected services: ['tts', 'yt']
+2026-10-23 15:13:18 [INFO] bot.service_manager: Service 'tts' loaded successfully!
+2026-10-23 15:13:18 [INFO] bot.service_manager: Service 'yt' loaded successfully!
+2026-10-23 15:13:18 [INFO] bot.core: Synchronizing application commands (Slash Commands)...
+2026-10-23 15:13:19 [INFO] bot.core: 3 application commands synchronized globally.
+2026-10-23 15:13:23 [INFO] bot.core: Bot connected as jvmoraiscb-bot#2417 (ID: 1563220529731866674)
+2026-10-23 15:13:23 [INFO] bot.core: Connected to 1 guild(s)
+2026-10-23 15:13:23 [INFO] bot.core: Instantly synchronized 3 commands to guild acabou o rap (1527352382802100264).
+2026-10-23 15:14:03 [INFO] bot.main: Shutdown signal received. Disconnecting...
+2026-10-23 15:14:10 [INFO] bot.main: Starting Modular Discord Bot...
+2026-10-23 15:14:10 [INFO] bot.guild_store: Successfully loaded guild settings from data/guild_settings.json
+2026-10-23 15:14:10 [INFO] discord.client: logging in using static token
+2026-10-23 15:14:10 [INFO] bot.core: Loading modular services...
+2026-10-23 15:14:10 [INFO] bot.service_manager: Detected services: ['tts', 'yt']
+2026-10-23 15:14:11 [INFO] bot.service_manager: Service 'tts' loaded successfully!
+2026-10-23 15:14:11 [INFO] bot.service_manager: Service 'yt' loaded successfully!
+2026-10-23 15:14:11 [INFO] bot.core: Synchronizing application commands (Slash Commands)...
+2026-10-23 15:14:11 [INFO] bot.core: 3 application commands synchronized globally.
+2026-10-23 15:14:17 [INFO] bot.core: Bot connected as jvmoraiscb-bot#2417 (ID: 1563220529731866674)
+2026-10-23 15:14:17 [INFO] bot.core: Connected to 1 guild(s)
+2026-10-23 15:14:18 [INFO] bot.core: Instantly synchronized 3 commands to guild acabou o rap (1527352382802100264).
+2026-10-23 15:25:00 [INFO] bot.main: Shutdown signal received. Disconnecting...
+2026-10-23 15:25:07 [INFO] bot.main: Starting Modular Discord Bot...
+2026-10-23 15:25:07 [INFO] bot.guild_store: Successfully loaded guild settings from data/guild_settings.json
+2026-10-23 15:25:07 [INFO] discord.client: logging in using static token
+2026-10-23 15:25:08 [INFO] bot.core: Loading modular services...
+2026-10-23 15:25:08 [INFO] bot.service_manager: Detected services: ['tts', 'yt']
+2026-10-23 15:25:08 [INFO] bot.service_manager: Service 'tts' loaded successfully!
+2026-10-23 15:25:08 [INFO] bot.service_manager: Service 'yt' loaded successfully!
+2026-10-23 15:25:08 [INFO] bot.core: Synchronizing application commands (Slash Commands)...
+2026-10-23 15:25:09 [INFO] bot.core: 4 application commands synchronized globally.
+2026-10-23 15:25:11 [INFO] bot.core: Bot connected as jvmoraiscb-bot#2417 (ID: 1563220529731866674)
+2026-10-23 15:25:11 [INFO] bot.core: Connected to 1 guild(s)
+2026-10-23 15:25:12 [INFO] bot.core: Instantly synchronized 4 commands to guild acabou o rap (1527352382802100264).
+2026-10-23 15:31:12 [INFO] bot.main: Shutdown signal received. Disconnecting...
+2026-10-23 15:31:31 [INFO] bot.main: Starting Modular Discord Bot...
+2026-10-23 15:31:31 [INFO] bot.guild_store: Successfully loaded guild settings from data/guild_settings.json
+2026-10-23 15:31:31 [INFO] discord.client: logging in using static token
+2026-10-23 15:31:32 [INFO] bot.core: Loading modular services...
+2026-10-23 15:31:32 [INFO] bot.service_manager: Detected services: ['tts', 'yt']
+2026-10-23 15:31:32 [INFO] bot.service_manager: Service 'tts' loaded successfully!
+2026-10-23 15:31:32 [INFO] bot.service_manager: Service 'yt' loaded successfully!
+2026-10-23 15:31:32 [INFO] bot.core: Synchronizing application commands (Slash Commands)...
+2026-10-23 15:31:33 [INFO] bot.core: 4 application commands synchronized globally.
+2026-10-23 15:31:36 [INFO] bot.core: Bot connected as jvmoraiscb-bot#2417 (ID: 1563220529731866674)
+2026-10-23 15:31:36 [INFO] bot.core: Connected to 1 guild(s)
+2026-10-23 15:31:37 [INFO] bot.core: Cleaned guild-specific commands for acabou o rap (1527352382802100264) to prevent autocomplete duplicates.
+2026-10-23 15:31:37 [INFO] discord.voice_state: Connecting to voice...
+2026-10-23 15:31:37 [INFO] discord.voice_state: Starting voice handshake... (connection attempt 1)
+2026-10-23 15:31:38 [INFO] discord.voice_state: Voice handshake complete. Endpoint found: c-gru17-9cd9b3cb.discord.media:8443
+2026-10-23 15:31:38 [INFO] discord.voice_state: Voice connection complete.
+2026-10-23 15:51:08 [ERROR] asyncio: Task exception was never retrieved
+future: <Task finished name='Task-21' coro=<GuildVoicePlayer._process_queue() done, defined at /home/jvmoraiscb/git-repositories/discord-bot/services/tts/voice_queue.py:76> exception=AttributeError("'GuildVoicePlayer' object has no attribute 'guild_id'")>
+Traceback (most recent call last):
+  File "/home/jvmoraiscb/git-repositories/discord-bot/services/tts/voice_queue.py", line 89, in _process_queue
+    vc = self.voice_client
+         ^^^^^^^^^^^^^^^^^
+  File "/home/jvmoraiscb/git-repositories/discord-bot/services/tts/voice_queue.py", line 58, in voice_client
+    guild = self.bot.get_guild(self.guild_id)
+            ^^^^^^^^
+AttributeError: 'GuildVoicePlayer' object has no attribute 'bot'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jvmoraiscb/git-repositories/discord-bot/services/tts/voice_queue.py", line 138, in _process_queue
+    logger.exception("Unexpected error in audio playback loop for guild %s: %s", self.guild_id, e)
+                                                                                 ^^^^^^^^^^^^^
+AttributeError: 'GuildVoicePlayer' object has no attribute 'guild_id'
+2026-10-23 15:51:18 [ERROR] asyncio: Task exception was never retrieved
+future: <Task finished name='Task-290' coro=<GuildVoicePlayer._process_queue() done, defined at /home/jvmoraiscb/git-repositories/discord-bot/services/tts/voice_queue.py:76> exception=AttributeError("'GuildVoicePlayer' object has no attribute 'guild_id'")>
+Traceback (most recent call last):
+  File "/home/jvmoraiscb/git-repositories/discord-bot/services/tts/voice_queue.py", line 89, in _process_queue
+    vc = self.voice_client
+         ^^^^^^^^^^^^^^^^^
+  File "/home/jvmoraiscb/git-repositories/discord-bot/services/tts/voice_queue.py", line 58, in voice_client
+    guild = self.bot.get_guild(self.guild_id)
+            ^^^^^^^^
+AttributeError: 'GuildVoicePlayer' object has no attribute 'bot'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jvmoraiscb/git-repositories/discord-bot/services/tts/voice_queue.py", line 138, in _process_queue
+    logger.exception("Unexpected error in audio playback loop for guild %s: %s", self.guild_id, e)
+                                                                                 ^^^^^^^^^^^^^
+AttributeError: 'GuildVoicePlayer' object has no attribute 'guild_id'
+2026-10-23 15:51:29 [ERROR] asyncio: Task exception was never retrieved
+future: <Task finished name='Task-299' coro=<GuildVoicePlayer._process_queue() done, defined at /home/jvmoraiscb/git-repositories/discord-bot/services/tts/voice_queue.py:76> exception=AttributeError("'GuildVoicePlayer' object has no attribute 'guild_id'")>
+Traceback (most recent call last):
+  File "/home/jvmoraiscb/git-repositories/discord-bot/services/tts/voice_queue.py", line 89, in _process_queue
+    vc = self.voice_client
+         ^^^^^^^^^^^^^^^^^
+  File "/home/jvmoraiscb/git-repositories/discord-bot/services/tts/voice_queue.py", line 58, in voice_client
+    guild = self.bot.get_guild(self.guild_id)
+            ^^^^^^^^
+AttributeError: 'GuildVoicePlayer' object has no attribute 'bot'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jvmoraiscb/git-repositories/discord-bot/services/tts/voice_queue.py", line 138, in _process_queue
+    logger.exception("Unexpected error in audio playback loop for guild %s: %s", self.guild_id, e)
+                                                                                 ^^^^^^^^^^^^^
+AttributeError: 'GuildVoicePlayer' object has no attribute 'guild_id'
+2026-10-23 15:55:06 [ERROR] asyncio: Task exception was never retrieved
+future: <Task finished name='Task-311' coro=<GuildVoicePlayer._process_queue() done, defined at /home/jvmoraiscb/git-repositories/discord-bot/services/tts/voice_queue.py:76> exception=AttributeError("'GuildVoicePlayer' object has no attribute 'guild_id'")>
+Traceback (most recent call last):
+  File "/home/jvmoraiscb/git-repositories/discord-bot/services/tts/voice_queue.py", line 89, in _process_queue
+    vc = self.voice_client
+         ^^^^^^^^^^^^^^^^^
+  File "/home/jvmoraiscb/git-repositories/discord-bot/services/tts/voice_queue.py", line 58, in voice_client
+    guild = self.bot.get_guild(self.guild_id)
+            ^^^^^^^^
+AttributeError: 'GuildVoicePlayer' object has no attribute 'bot'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jvmoraiscb/git-repositories/discord-bot/services/tts/voice_queue.py", line 138, in _process_queue
+    logger.exception("Unexpected error in audio playback loop for guild %s: %s", self.guild_id, e)
+                                                                                 ^^^^^^^^^^^^^
+AttributeError: 'GuildVoicePlayer' object has no attribute 'guild_id'
+2026-10-23 15:55:45 [ERROR] asyncio: Task exception was never retrieved
+future: <Task finished name='Task-368' coro=<GuildVoicePlayer._process_queue() done, defined at /home/jvmoraiscb/git-repositories/discord-bot/services/tts/voice_queue.py:76> exception=AttributeError("'GuildVoicePlayer' object has no attribute 'guild_id'")>
+Traceback (most recent call last):
+  File "/home/jvmoraiscb/git-repositories/discord-bot/services/tts/voice_queue.py", line 89, in _process_queue
+    vc = self.voice_client
+         ^^^^^^^^^^^^^^^^^
+  File "/home/jvmoraiscb/git-repositories/discord-bot/services/tts/voice_queue.py", line 58, in voice_client
+    guild = self.bot.get_guild(self.guild_id)
+            ^^^^^^^^
+AttributeError: 'GuildVoicePlayer' object has no attribute 'bot'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jvmoraiscb/git-repositories/discord-bot/services/tts/voice_queue.py", line 138, in _process_queue
+    logger.exception("Unexpected error in audio playback loop for guild %s: %s", self.guild_id, e)
+                                                                                 ^^^^^^^^^^^^^
+AttributeError: 'GuildVoicePlayer' object has no attribute 'guild_id'
+2026-10-23 16:01:50 [ERROR] bot.service.yt.ytdl: Failed to extract info for query 'https://www.youtube.com/watch?v=XBz7VeuLYCs': [0;31mERROR:[0m [youtube] XBz7VeuLYCs: This video is not available
+2026-10-23 16:02:15 [ERROR] bot.service.yt.ytdl: Failed to extract info for query 'https://youtu.be/XBz7VeuLYCs?si=FLhRgWIYDiIkgxDc': [0;31mERROR:[0m [youtube] XBz7VeuLYCs: This video is not available
+2026-10-23 16:02:27 [INFO] bot.main: Shutdown signal received. Disconnecting...
+2026-10-23 16:02:27 [ERROR] discord.ext.commands.cog: Ignoring exception in cog unload for Cog <class 'services.tts.service.TTSService'> ('TTSService')
+Traceback (most recent call last):
+  File "/usr/lib/python3.14/asyncio/runners.py", line 204, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "/usr/lib/python3.14/asyncio/runners.py", line 127, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/usr/lib/python3.14/asyncio/base_events.py", line 706, in run_until_complete
+    self.run_forever()
+    ~~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.14/asyncio/base_events.py", line 677, in run_forever
+    self._run_once()
+    ~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.14/asyncio/base_events.py", line 2019, in _run_once
+    event_list = self._selector.select(timeout)
+  File "/usr/lib/python3.14/selectors.py", line 452, in select
+    fd_event_list = self._selector.poll(timeout, max_ev)
+  File "/home/jvmoraiscb/git-repositories/discord-bot/main.py", line 79, in handle_signal
+    logger.info("Shutdown signal received. Disconnecting...")
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/logging/__init__.py", line 1520, in info
+    self._log(INFO, msg, args, **kwargs)
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/logging/__init__.py", line 1665, in _log
+    self.handle(record)
+    ~~~~~~~~~~~^^^^^^^^
+  File "/usr/lib/python3.14/logging/__init__.py", line 1681, in handle
+    self.callHandlers(record)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^
+  File "/usr/lib/python3.14/logging/__init__.py", line 1737, in callHandlers
+    hdlr.handle(record)
+    ~~~~~~~~~~~^^^^^^^^
+  File "/usr/lib/python3.14/logging/__init__.py", line 1027, in handle
+    self.emit(record)
+    ~~~~~~~~~^^^^^^^^
+  File "/usr/lib/python3.14/logging/__init__.py", line 1151, in emit
+    msg = self.format(record)
+  File "/usr/lib/python3.14/logging/__init__.py", line 999, in format
+    return fmt.format(record)
+           ~~~~~~~~~~^^^^^^^^
+  File "/usr/lib/python3.14/logging/__init__.py", line 714, in format
+    record.asctime = self.formatTime(record, self.datefmt)
+                     ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/logging/__init__.py", line 649, in formatTime
+    ct = self.converter(record.created)
+  File "/home/jvmoraiscb/git-repositories/discord-bot/main.py", line 85, in handle_signal
+    sys.exit(0)
+    ~~~~~~~~^^^
+SystemExit: 0
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jvmoraiscb/git-repositories/discord-bot/.venv/lib/python3.14/site-packages/discord/client.py", line 922, in runner
+    await self.start(token, reconnect=reconnect)
+  File "/home/jvmoraiscb/git-repositories/discord-bot/.venv/lib/python3.14/site-packages/discord/client.py", line 851, in start
+    await self.connect(reconnect=reconnect)
+  File "/home/jvmoraiscb/git-repositories/discord-bot/.venv/lib/python3.14/site-packages/discord/client.py", line 731, in connect
+    await self.ws.poll_event()
+  File "/home/jvmoraiscb/git-repositories/discord-bot/.venv/lib/python3.14/site-packages/discord/gateway.py", line 640, in poll_event
+    msg = await self.socket.receive(timeout=self._max_heartbeat_timeout)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jvmoraiscb/git-repositories/discord-bot/.venv/lib/python3.14/site-packages/aiohttp/client_ws.py", line 425, in receive
+    msg = await self._reader.read()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "aiohttp/_websocket/reader_py.py", line 140, in read
+  File "aiohttp/_websocket/reader_py.py", line 137, in aiohttp._websocket.reader_c.WebSocketDataQueue.read
+    await self._waiter
+asyncio.exceptions.CancelledError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jvmoraiscb/git-repositories/discord-bot/.venv/lib/python3.14/site-packages/discord/ext/commands/cog.py", line 780, in _eject
+    await maybe_coroutine(self.cog_unload)
+  File "/home/jvmoraiscb/git-repositories/discord-bot/.venv/lib/python3.14/site-packages/discord/utils.py", line 713, in maybe_coroutine
+    return await value
+           ^^^^^^^^^^^
+  File "/home/jvmoraiscb/git-repositories/discord-bot/core/service_base.py", line 85, in cog_unload
+    await self.on_service_unload()
+  File "/home/jvmoraiscb/git-repositories/discord-bot/services/tts/service.py", line 101, in on_service_unload
+    await player.stop()
+  File "/home/jvmoraiscb/git-repositories/discord-bot/services/tts/voice_queue.py", line 154, in stop
+    """Stops playback, empties queue, and cancels background tasks."""
+         ^^^^^^^^^^^^^^^^^
+  File "/home/jvmoraiscb/git-repositories/discord-bot/services/tts/voice_queue.py", line 58, in voice_client
+    @property
+    
+AttributeError: 'GuildVoicePlayer' object has no attribute 'bot'
+2026-10-23 16:02:27 [INFO] discord.voice_state: The voice handshake is being terminated for Channel ID 1527352384744067145 (Guild ID 1527352382802100264)
+2026-10-23 16:02:37 [INFO] bot.main: Shutdown signal received. Disconnecting...
+2026-10-23 16:02:37 [ERROR] asyncio: Task was destroyed but it is pending!
+task: <Task pending name='Task-485' coro=<BotBase.close() running at /home/jvmoraiscb/git-repositories/discord-bot/.venv/lib/python3.14/site-packages/discord/ext/commands/bot.py:244>>
+2026-10-23 16:02:57 [INFO] bot.main: Starting Modular Discord Bot...
+2026-10-23 16:02:57 [INFO] bot.guild_store: Successfully loaded guild settings from data/guild_settings.json
+2026-10-23 16:02:57 [INFO] discord.client: logging in using static token
+2026-10-23 16:02:58 [INFO] bot.core: Loading modular services...
+2026-10-23 16:02:58 [INFO] bot.service_manager: Detected services: ['tts', 'yt']
+2026-10-23 16:02:58 [INFO] bot.service_manager: Service 'tts' loaded successfully!
+2026-10-23 16:02:59 [INFO] bot.service_manager: Service 'yt' loaded successfully!
+2026-10-23 16:02:59 [INFO] bot.core: Synchronizing application commands (Slash Commands)...
+2026-10-23 16:02:59 [INFO] bot.core: 3 application commands synchronized globally.
+2026-10-23 16:03:02 [INFO] bot.core: Bot connected as jvmoraiscb-bot#2417 (ID: 1563220529731866674)
+2026-10-23 16:03:02 [INFO] bot.core: Connected to 1 guild(s)
+2026-10-23 16:03:02 [INFO] bot.core: Cleaned guild-specific commands for acabou o rap (1527352382802100264) to prevent autocomplete duplicates.
+2026-10-23 16:05:13 [INFO] discord.voice_state: Connecting to voice...
+2026-10-23 16:05:13 [INFO] discord.voice_state: Starting voice handshake... (connection attempt 1)
+2026-10-23 16:05:13 [INFO] discord.voice_state: Voice handshake complete. Endpoint found: c-gru17-9cd9b3cb.discord.media:8443
+2026-10-23 16:05:13 [INFO] discord.voice_state: Voice connection complete.
+2026-10-23 16:05:18 [INFO] discord.player: ffmpeg process 73190 successfully terminated with return code of 0.
+2026-10-23 16:06:49 [ERROR] bot.service.yt.ytdl: Failed to extract info for query 'https://youtu.be/XBz7VeuLYCs?si=FLhRgWIYDiIkgxDc': [0;31mERROR:[0m [youtube] XBz7VeuLYCs: This video is not available
+2026-10-23 16:07:18 [INFO] bot.service.yt.queue: Started playing 'RISE AND FALL // Hush Agent Trailer - VALORANT' in guild 1527352382802100264
+2026-10-23 16:07:33 [INFO] discord.player: ffmpeg process 73658 has not terminated. Waiting to terminate...
+2026-10-23 16:07:33 [INFO] discord.player: ffmpeg process 73658 should have terminated with a return code of -9.
+2026-10-23 16:08:15 [ERROR] bot.service.yt.ytdl: Failed to extract info for query 'https://youtu.be/XBz7VeuLYCs?si=4-Q4mABsYsoLRsE2': [0;31mERROR:[0m [youtube] XBz7VeuLYCs: This video is not available
+2026-10-23 16:11:18 [INFO] bot.main: Shutdown signal received. Disconnecting...
+2026-10-23 16:11:18 [INFO] discord.voice_state: The voice handshake is being terminated for Channel ID 1527352384744067145 (Guild ID 1527352382802100264)
+2026-10-23 16:11:23 [INFO] bot.main: Shutdown signal received. Disconnecting...
+2026-10-23 16:11:23 [ERROR] asyncio: Task was destroyed but it is pending!
+task: <Task pending name='Task-129' coro=<BotBase.close() running at /home/jvmoraiscb/git-repositories/discord-bot/.venv/lib/python3.14/site-packages/discord/ext/commands/bot.py:244>>
+2026-10-23 16:11:23 [INFO] bot.main: Starting Modular Discord Bot...
+2026-10-23 16:11:23 [INFO] bot.guild_store: Successfully loaded guild settings from data/guild_settings.json
+2026-10-23 16:11:23 [INFO] discord.client: logging in using static token
+2026-10-23 16:11:23 [INFO] bot.core: Loading modular services...
+2026-10-23 16:11:23 [INFO] bot.service_manager: Detected services: ['tts', 'yt']
+2026-10-23 16:11:23 [INFO] bot.service_manager: Service 'tts' loaded successfully!
+2026-10-23 16:11:24 [INFO] bot.service_manager: Service 'yt' loaded successfully!
+2026-10-23 16:11:24 [INFO] bot.core: Synchronizing application commands (Slash Commands)...
+2026-10-23 16:11:24 [INFO] bot.core: 3 application commands synchronized globally.
+2026-10-23 16:11:29 [INFO] bot.core: Bot connected as jvmoraiscb-bot#2417 (ID: 1563220529731866674)
+2026-10-23 16:11:29 [INFO] bot.core: Connected to 1 guild(s)
+2026-10-23 16:11:29 [INFO] bot.core: Cleaned guild-specific commands for acabou o rap (1527352382802100264) to prevent autocomplete duplicates.
+2026-10-23 16:11:32 [INFO] bot.main: Shutdown signal received. Disconnecting...
+2026-10-23 16:11:32 [INFO] bot.main: Starting Modular Discord Bot...
+2026-10-23 16:11:32 [INFO] bot.guild_store: Successfully loaded guild settings from data/guild_settings.json
+2026-10-23 16:11:32 [INFO] discord.client: logging in using static token
+2026-10-23 16:11:33 [INFO] bot.core: Loading modular services...
+2026-10-23 16:11:33 [INFO] bot.service_manager: Detected services: ['tts', 'yt']
+2026-10-23 16:11:33 [INFO] bot.service_manager: Service 'tts' loaded successfully!
+2026-10-23 16:11:33 [INFO] bot.service_manager: Service 'yt' loaded successfully!
+2026-10-23 16:11:33 [INFO] bot.core: Synchronizing application commands (Slash Commands)...
+2026-10-23 16:11:52 [INFO] bot.main: Shutdown signal received. Disconnecting...
+2026-10-23 16:11:52 [INFO] bot.main: Starting Modular Discord Bot...
+2026-10-23 16:11:52 [INFO] bot.guild_store: Successfully loaded guild settings from data/guild_settings.json
+2026-10-23 16:11:52 [INFO] discord.client: logging in using static token
+2026-10-23 16:11:53 [INFO] bot.core: Loading modular services...
+2026-10-23 16:11:53 [INFO] bot.service_manager: Detected services: ['tts', 'yt']
+2026-10-23 16:11:53 [INFO] bot.service_manager: Service 'tts' loaded successfully!
+2026-10-23 16:11:53 [INFO] bot.service_manager: Service 'yt' loaded successfully!
+2026-10-23 16:11:53 [INFO] bot.core: Synchronizing application commands (Slash Commands)...
+2026-10-23 16:11:53 [WARNING] discord.http: We are being rate limited. PUT https://discord.com/api/v10/applications/1563220529731866674/commands responded with 429. Retrying in 0.75 seconds.
+2026-10-23 16:12:26 [INFO] bot.main: Shutdown signal received. Disconnecting...
+2026-10-23 16:12:27 [INFO] bot.main: Starting Modular Discord Bot...
+2026-10-23 16:12:27 [INFO] bot.guild_store: Successfully loaded guild settings from data/guild_settings.json
+2026-10-23 16:12:27 [INFO] discord.client: logging in using static token
+2026-10-23 16:12:28 [INFO] bot.core: Loading modular services...
+2026-10-23 16:12:28 [INFO] bot.service_manager: Detected services: ['tts', 'yt']
+2026-10-23 16:12:28 [INFO] bot.service_manager: Service 'tts' loaded successfully!
+2026-10-23 16:12:28 [INFO] bot.service_manager: Service 'yt' loaded successfully!
+2026-10-23 16:12:28 [INFO] bot.core: Synchronizing application commands (Slash Commands)...
+2026-10-23 16:12:52 [INFO] bot.main: Shutdown signal received. Disconnecting...
+2026-10-23 16:13:09 [INFO] bot.main: Starting Modular Discord Bot...
+2026-10-23 16:13:09 [INFO] bot.guild_store: Successfully loaded guild settings from data/guild_settings.json
+2026-10-23 16:13:09 [INFO] discord.client: logging in using static token
+2026-10-23 16:13:10 [INFO] bot.core: Loading modular services...
+2026-10-23 16:13:10 [INFO] bot.service_manager: Detected services: ['tts', 'yt']
+2026-10-23 16:13:10 [INFO] bot.service_manager: Service 'tts' loaded successfully!
+2026-10-23 16:13:10 [INFO] bot.service_manager: Service 'yt' loaded successfully!
+2026-10-23 16:13:10 [INFO] bot.core: Synchronizing application commands (Slash Commands)...
+2026-10-23 16:13:54 [INFO] bot.core: 3 application commands synchronized globally.
+2026-10-23 16:13:58 [INFO] bot.core: Bot connected as jvmoraiscb-bot#2417 (ID: 1563220529731866674)
+2026-10-23 16:13:58 [INFO] bot.core: Connected to 1 guild(s)
+2026-10-23 16:13:58 [INFO] bot.core: Cleaned guild-specific commands for acabou o rap (1527352382802100264) to prevent autocomplete duplicates.
+2026-10-23 16:31:34 [INFO] bot.main: Shutdown signal received. Disconnecting...
+2026-10-23 16:31:42 [INFO] bot.main: Starting Modular Discord Bot...
+2026-10-23 16:31:42 [INFO] bot.guild_store: Successfully loaded guild settings from data/guild_settings.json
+2026-10-23 16:31:42 [INFO] discord.client: logging in using static token
+2026-10-23 16:31:43 [INFO] bot.core: Loading modular services...
+2026-10-23 16:31:43 [INFO] bot.service_manager: Detected services: ['tts', 'yt']
+2026-10-23 16:31:43 [INFO] bot.service_manager: Service 'tts' loaded successfully!
+2026-10-23 16:31:43 [INFO] bot.service_manager: Service 'yt' loaded successfully!
+2026-10-23 16:31:43 [INFO] bot.core: Synchronizing application commands (Slash Commands)...
+2026-10-23 16:31:43 [INFO] bot.core: 3 application commands synchronized globally.
+2026-10-23 16:31:47 [INFO] bot.core: Bot connected as jvmoraiscb-bot#2417 (ID: 1563220529731866674)
+2026-10-23 16:31:47 [INFO] bot.core: Connected to 1 guild(s)
+2026-10-23 16:31:47 [INFO] bot.core: Cleaned guild-specific commands for acabou o rap (1527352382802100264) to prevent autocomplete duplicates.
+2026-10-23 16:33:21 [INFO] discord.voice_state: Connecting to voice...
+2026-10-23 16:33:21 [INFO] discord.voice_state: Starting voice handshake... (connection attempt 1)
+2026-10-23 16:33:22 [INFO] discord.voice_state: Voice handshake complete. Endpoint found: c-gru17-9cd9b3cb.discord.media:8443
+2026-10-23 16:33:22 [INFO] discord.voice_state: Voice connection complete.
+2026-10-23 16:33:24 [INFO] bot.service.yt.queue: Started playing 'paulo kogos sobre votar no renan santos' in guild 1527352382802100264
+2026-10-23 16:34:17 [INFO] discord.player: ffmpeg process 79237 successfully terminated with return code of 0.
+2026-10-23 16:37:33 [INFO] discord.voice_state: The voice handshake is being terminated for Channel ID 1527352384744067145 (Guild ID 1527352382802100264)
