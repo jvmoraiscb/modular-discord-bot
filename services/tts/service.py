@@ -10,7 +10,7 @@ from discord.ext import commands
 
 from core.service_base import BaseService
 from services.tts.tts_engine import TTSEngine
-from services.tts.voice_queue import GuildVoicePlayer, QueueItem
+from core.voice_queue import AudioTrack, GuildAudioPlayer
 
 if TYPE_CHECKING:
     from core.bot import ModularBot
@@ -81,7 +81,6 @@ class TTSService(BaseService):
     def __init__(self, bot: ModularBot, config: Optional[dict] = None) -> None:
         super().__init__(bot, config)
         self.engine = TTSEngine()
-        self.players: Dict[int, GuildVoicePlayer] = {}
         self._connect_locks: Dict[int, asyncio.Lock] = {}
 
     def _get_connect_lock(self, guild_id: int) -> asyncio.Lock:
@@ -137,24 +136,26 @@ class TTSService(BaseService):
                 )
                 return None
 
-    def get_player(self, guild: discord.Guild) -> GuildVoicePlayer:
-        """Retrieves or instantiates the voice player manager for a guild."""
-        if guild.id not in self.players:
-            timeout = self.get_guild_timeout(guild.id)
-            ffmpeg = self.get_guild_setting(guild.id, "ffmpeg_path", "ffmpeg")
-            self.players[guild.id] = GuildVoicePlayer(
-                guild_id=guild.id,
-                bot=self.bot,
-                idle_timeout=timeout,
-                ffmpeg_path=ffmpeg,
-            )
-        return self.players[guild.id]
+    def get_player(self, guild: discord.Guild) -> GuildAudioPlayer:
+        """Retrieves the unified audio player for this guild from the bot core."""
+        return self.bot.get_audio_player(guild.id)
+
+    def get_service_volume(self, guild_id: Optional[int]) -> float:
+        """Returns the configured TTS playback volume as float (0.0 - 2.0)."""
+        raw_vol = self.get_guild_setting(
+            guild_id, "default_volume", self.config.get("default_volume", 90)
+        )
+        try:
+            vol = float(raw_vol)
+            if vol > 2.0:
+                vol = vol / 100.0
+            return max(0.0, min(vol, 2.0))
+        except (ValueError, TypeError):
+            return 0.9
 
     async def on_service_unload(self) -> None:
-        """Cleans up active voice connections and queues upon unloading the service."""
-        for player in list(self.players.values()):
-            await player.stop()
-        self.players.clear()
+        """Cleans up service upon unloading."""
+        pass
 
     def get_guild_speed(self, guild_id: Optional[int]) -> float:
         """Returns the configured speed multiplier for a guild (default 1.0)."""
@@ -341,16 +342,19 @@ class TTSService(BaseService):
                 )
 
         player = self.get_player(guild)
-        speech_item = QueueItem(
-            file_path=audio_path,
-            text=cleaned_text,
+        track = AudioTrack(
+            title=f"TTS: {cleaned_text[:40]}" if len(cleaned_text) > 40 else f"TTS: {cleaned_text}",
+            source=audio_path,
+            volume=self.get_service_volume(guild.id),
+            service_name="tts",
             requester=interaction.user.display_name,
-            source_channel_id=interaction.channel_id,
+            channel=interaction.channel,
             is_temporary=True,
+            options="-loglevel error",
         )
 
-        pos = await player.add_item(speech_item)
-        if pos <= 1:
+        pos = await player.add_track(track)
+        if pos == 0:
             await interaction.followup.send(f"**{interaction.user.display_name}**: \"{cleaned_text}\"")
         else:
             await interaction.followup.send(
@@ -361,29 +365,6 @@ class TTSService(BaseService):
     @tts_group.command(name="speak", description="Speaks text in current voice channel.")
     async def cmd_tts_speak(self, interaction: discord.Interaction, text: str):
         await self._exec_speak(interaction, text)
-
-    @tts_group.command(name="stop", description="Stops current speech and clears the audio queue.")
-    async def cmd_tts_stop(self, interaction: discord.Interaction):
-        guild = interaction.guild
-        if not guild or guild.id not in self.players:
-            await interaction.response.send_message("ℹNothing is currently playing.", ephemeral=True)
-            return
-
-        await self.players[guild.id].stop()
-        await interaction.response.send_message("Playback stopped and audio queue cleared.")
-
-    @tts_group.command(name="skip", description="Skips the currently playing speech audio.")
-    async def cmd_tts_skip(self, interaction: discord.Interaction):
-        guild = interaction.guild
-        if not guild or guild.id not in self.players:
-            await interaction.response.send_message("ℹNothing is currently playing.", ephemeral=True)
-            return
-
-        skipped = self.players[guild.id].skip()
-        if skipped:
-            await interaction.response.send_message("Audio skipped!")
-        else:
-            await interaction.response.send_message("ℹNo audio is currently playing to skip.", ephemeral=True)
 
     @tts_group.command(name="voices", description="Lists popular available neural voices.")
     async def cmd_tts_voices(self, interaction: discord.Interaction):
@@ -438,6 +419,7 @@ class TTSService(BaseService):
         embed.add_field(name="Speech Speed", value=f"`{speed:.1f}x`", inline=True)
         embed.add_field(name="Intro Sound", value=intro_display, inline=True)
         embed.add_field(name="Intro Delay", value=f"`{intro_delay:.1f}s`", inline=True)
+        embed.add_field(name="Speech Volume", value=f"`{int(self.get_service_volume(guild.id) * 100)}%`", inline=True)
         embed.add_field(name="Auto-Disconnect Timeout", value=timeout_str, inline=True)
         embed.add_field(name="Auto-Reading Channel", value=bound_ch_str, inline=False)
         embed.add_field(
@@ -445,6 +427,7 @@ class TTSService(BaseService):
             value=(
                 "• `/tts set_voice`: change server default voice\n"
                 "• `/tts set_speed`: adjust speech speed (e.g., `1.0x`, `1.2x`, `0.8x`)\n"
+                "• `/tts set_volume`: adjust speech volume (1-100%)\n"
                 "• `/tts set_intro`: choose sound cue played before message\n"
                 "• `/tts set_intro_delay`: delay before speech starts over intro (e.g. `1.0s`)\n"
                 "• `/bot set_auto_disconnect_timeout`: set voice inactivity timeout (0 = never disconnect)\n"
@@ -592,7 +575,7 @@ class TTSService(BaseService):
         if channel is None:
             await self.set_guild_setting(interaction.guild.id, "bound_channel_id", None)
             await interaction.response.send_message(
-                "ℹAuto-reading disabled. Use `/tts speak` to synthesize speech on demand."
+                "Auto-reading disabled. Use `/tts speak` to synthesize speech on demand."
             )
         else:
             await self.set_guild_setting(interaction.guild.id, "bound_channel_id", channel.id)
@@ -600,6 +583,28 @@ class TTSService(BaseService):
                 f"Auto-reading channel set to {channel.mention}!\n"
                 f"When you send messages in this channel, the bot will automatically join your voice channel and read them aloud."
             )
+
+    @tts_group.command(name="set_volume", description="Sets the default TTS speech volume for this server (1-100%).")
+    @app_commands.describe(level="Volume level from 1 to 100")
+    @app_commands.default_permissions(manage_guild=True)
+    async def cmd_tts_set_volume(self, interaction: discord.Interaction, level: int):
+        guild = interaction.guild
+        if not guild:
+            await interaction.response.send_message("Command only available in servers.", ephemeral=True)
+            return
+
+        if level < 1 or level > 100:
+            await interaction.response.send_message("Volume must be between 1 and 100.", ephemeral=True)
+            return
+
+        vol_float = level / 100.0
+        await self.set_guild_setting(guild.id, "default_volume", level)
+
+        player = self.get_player(guild)
+        if player.current_track and player.current_track.service_name == "tts":
+            player.set_current_volume(vol_float)
+
+        await interaction.response.send_message(f"TTS speech volume set to **{level}%**.")
 
     # --- AUTO-READING (CHAT TO SPEECH) ---
     @commands.Cog.listener()
@@ -669,13 +674,16 @@ class TTSService(BaseService):
                     )
 
             player = self.get_player(message.guild)
-            speech_item = QueueItem(
-                file_path=audio_path,
-                text=cleaned,
+            track = AudioTrack(
+                title=f"TTS: {cleaned[:40]}" if len(cleaned) > 40 else f"TTS: {cleaned}",
+                source=audio_path,
+                volume=self.get_service_volume(message.guild.id),
+                service_name="tts",
                 requester=message.author.display_name,
-                source_channel_id=message.channel.id,
+                channel=message.channel,
                 is_temporary=True,
+                options="-loglevel error",
             )
-            await player.add_item(speech_item)
+            await player.add_track(track)
         except Exception as e:
             logger.error("Failed to synthesize automatic chat message in guild %s: %s", message.guild.id, e)

@@ -1,5 +1,6 @@
 {
   "enabled": true,
+  "default_volume": 100,
   "default_voice": "pt-BR-FranciscaNeural",
   "default_speed": 1.0,
   "intro_sound": "none",

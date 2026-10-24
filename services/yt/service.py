@@ -6,7 +6,7 @@ import discord
 from discord import app_commands
 
 from core.service_base import BaseService
-from services.yt.music_queue import GuildMusicPlayer
+from core.voice_queue import AudioTrack, GuildAudioPlayer
 from services.yt.ytdl_player import Song, YTDLExtractor, format_duration
 
 logger = logging.getLogger("bot.service.yt")
@@ -21,30 +21,27 @@ class YTService(BaseService):
     def __init__(self, bot, config: Optional[dict] = None) -> None:
         super().__init__(bot, config)
         self.extractor = YTDLExtractor()
-        self.players: Dict[int, GuildMusicPlayer] = {}
 
-    def get_player(self, guild: discord.Guild) -> GuildMusicPlayer:
-        """Retrieves or creates the GuildMusicPlayer instance for a guild."""
-        if guild.id not in self.players:
-            vol_pct = int(self.get_guild_setting(guild.id, "default_volume", 100))
-            idle_timeout = self.bot.get_guild_timeout(guild.id) if hasattr(self.bot, "get_guild_timeout") else 300
-            ffmpeg_path = str(self.get_guild_setting(guild.id, "ffmpeg_path", "ffmpeg"))
+    def get_player(self, guild: discord.Guild) -> GuildAudioPlayer:
+        """Retrieves the unified audio player for this guild from the bot core."""
+        return self.bot.get_audio_player(guild.id)
 
-            self.players[guild.id] = GuildMusicPlayer(
-                guild=guild,
-                bot=self.bot,
-                volume=vol_pct / 100.0,
-                idle_timeout=idle_timeout,
-                ffmpeg_path=ffmpeg_path,
-            )
-        return self.players[guild.id]
+    def get_service_volume(self, guild_id: Optional[int]) -> float:
+        """Returns the configured YouTube playback volume as float (0.0 - 2.0)."""
+        raw_vol = self.get_guild_setting(
+            guild_id, "default_volume", self.config.get("default_volume", 10)
+        )
+        try:
+            vol = float(raw_vol)
+            if vol > 2.0:
+                vol = vol / 100.0
+            return max(0.0, min(vol, 2.0))
+        except (ValueError, TypeError):
+            return 0.1
 
     async def on_service_unload(self) -> None:
-        """Cleans up active music players when service is unloaded."""
-        for player in self.players.values():
-            player.stop()
-            player._cancel_idle_timer()
-        self.players.clear()
+        """Cleans up active music service upon unloading."""
+        pass
 
     async def _connect_voice(self, interaction: discord.Interaction) -> Optional[discord.VoiceClient]:
         """Connects or moves the bot to the invoking user's voice channel."""
@@ -136,7 +133,21 @@ class YTService(BaseService):
             await interaction.followup.send(f"Could not find or extract audio for: `{query}`")
             return
 
-        pos = await player.add_song(song, channel=interaction.channel)
+        track = AudioTrack(
+            title=song.title,
+            source=song.stream_url,
+            volume=self.get_service_volume(guild.id),
+            service_name="yt",
+            requester=song.requester,
+            channel=interaction.channel,
+            duration=song.duration,
+            thumbnail=song.thumbnail,
+            uploader=song.uploader,
+            webpage_url=song.webpage_url,
+            is_temporary=False,
+        )
+
+        pos = await player.add_track(track)
 
         embed = discord.Embed(
             color=discord.Color.red(),
@@ -159,103 +170,6 @@ class YTService(BaseService):
             embed.description = f"**Added to queue (#{pos})**"
             await interaction.followup.send(embed=embed)
 
-    @yt_group.command(name="pause", description="Pauses current music playback.")
-    async def cmd_pause(self, interaction: discord.Interaction):
-        guild = interaction.guild
-        if not guild:
-            await interaction.response.send_message("Command only available in servers.", ephemeral=True)
-            return
-
-        player = self.get_player(guild)
-        if player.pause():
-            await interaction.response.send_message("Music playback paused.")
-        else:
-            await interaction.response.send_message("Nothing is currently playing.", ephemeral=True)
-
-    @yt_group.command(name="resume", description="Resumes paused music playback.")
-    async def cmd_resume(self, interaction: discord.Interaction):
-        guild = interaction.guild
-        if not guild:
-            await interaction.response.send_message("Command only available in servers.", ephemeral=True)
-            return
-
-        player = self.get_player(guild)
-        if player.resume():
-            await interaction.response.send_message("Music playback resumed.")
-        else:
-            await interaction.response.send_message("Playback is not paused.", ephemeral=True)
-
-    @yt_group.command(name="skip", description="Skips the currently playing song.")
-    async def cmd_skip(self, interaction: discord.Interaction):
-        guild = interaction.guild
-        if not guild:
-            await interaction.response.send_message("Command only available in servers.", ephemeral=True)
-            return
-
-        player = self.get_player(guild)
-        current = player.current_song
-        if player.skip():
-            title = current.title if current else "current song"
-            await interaction.response.send_message(f"Skipped: **{title}**")
-        else:
-            await interaction.response.send_message("No song is currently playing.", ephemeral=True)
-
-    @yt_group.command(name="stop", description="Stops music playback and clears the queue.")
-    async def cmd_stop(self, interaction: discord.Interaction):
-        guild = interaction.guild
-        if not guild:
-            await interaction.response.send_message("Command only available in servers.", ephemeral=True)
-            return
-
-        player = self.get_player(guild)
-        player.stop()
-        await interaction.response.send_message("Playback stopped and queue cleared.")
-
-    @yt_group.command(name="queue", description="Shows the current song queue.")
-    async def cmd_queue(self, interaction: discord.Interaction):
-        guild = interaction.guild
-        if not guild:
-            await interaction.response.send_message("Command only available in servers.", ephemeral=True)
-            return
-
-        player = self.get_player(guild)
-        current = player.current_song
-        queue_items = list(player.queue)
-
-        if not current and not queue_items:
-            await interaction.response.send_message("The music queue is currently empty.", ephemeral=True)
-            return
-
-        embed = discord.Embed(
-            title=f"Music Queue - {guild.name}",
-            color=discord.Color.red(),
-        )
-
-        if current:
-            embed.add_field(
-                name="Currently Playing",
-                value=f"[{current.title}]({current.webpage_url}) | `{current.formatted_duration}`\n*Requested by {current.requester}*",
-                inline=False,
-            )
-
-        if queue_items:
-            queue_str = ""
-            for idx, item in enumerate(queue_items[:10], start=1):
-                queue_str += f"`{idx}.` [{item.title}]({item.webpage_url}) | `{item.formatted_duration}` ({item.requester})\n"
-
-            if len(queue_items) > 10:
-                queue_str += f"\n*... and {len(queue_items) - 10} more track(s)*"
-
-            embed.add_field(
-                name=f"Up Next ({len(queue_items)} track(s))",
-                value=queue_str,
-                inline=False,
-            )
-        else:
-            embed.add_field(name="Up Next", value="*No upcoming songs in queue*", inline=False)
-
-        await interaction.response.send_message(embed=embed)
-
     @yt_group.command(name="nowplaying", description="Shows details about the currently playing song.")
     async def cmd_nowplaying(self, interaction: discord.Interaction):
         guild = interaction.guild
@@ -264,24 +178,29 @@ class YTService(BaseService):
             return
 
         player = self.get_player(guild)
-        song = player.current_song
+        track = player.current_track
 
-        if not song:
-            await interaction.response.send_message("No song is currently playing.", ephemeral=True)
+        if not track:
+            await interaction.response.send_message("No audio is currently playing.", ephemeral=True)
             return
 
         embed = discord.Embed(
-            title=song.title,
-            url=song.webpage_url,
+            title=track.title,
             color=discord.Color.red(),
             description="**Currently Playing**",
         )
-        if song.thumbnail:
-            embed.set_thumbnail(url=song.thumbnail)
-        embed.add_field(name="Channel", value=song.uploader, inline=True)
-        embed.add_field(name="Duration", value=song.formatted_duration, inline=True)
-        embed.add_field(name="Volume", value=f"{int(player.volume * 100)}%", inline=True)
-        embed.set_footer(text=f"Requested by {song.requester}")
+        if track.webpage_url:
+            embed.url = track.webpage_url
+        if track.thumbnail:
+            embed.set_thumbnail(url=track.thumbnail)
+        if track.uploader:
+            embed.add_field(name="Channel", value=track.uploader, inline=True)
+        embed.add_field(name="Duration", value=track.formatted_duration, inline=True)
+        embed.add_field(name="Volume", value=f"{int(track.volume * 100)}%", inline=True)
+        if track.service_name:
+            embed.add_field(name="Service", value=track.service_name.upper(), inline=True)
+        if track.requester:
+            embed.set_footer(text=f"Requested by {track.requester}")
 
         await interaction.response.send_message(embed=embed)
 
@@ -298,7 +217,8 @@ class YTService(BaseService):
             return
 
         player = self.get_player(guild)
-        player.set_volume(level / 100.0)
+        vol_float = level / 100.0
+        player.set_current_volume(vol_float)
         await self.set_guild_setting(guild.id, "default_volume", level)
 
         await interaction.response.send_message(f"Playback volume set to **{level}%**.")

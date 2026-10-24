@@ -10,6 +10,7 @@ from discord.ext import commands
 
 from core.guild_store import GuildStore
 from core.service_manager import ServiceManager
+from core.voice_queue import AudioTrack, GuildAudioPlayer
 
 logger = logging.getLogger("bot.core")
 
@@ -48,6 +49,18 @@ class ModularBot(commands.Bot):
         # Core components
         self.guild_store = GuildStore()
         self.service_manager = ServiceManager(self)
+        self.audio_players: Dict[int, GuildAudioPlayer] = {}
+
+    def get_audio_player(self, guild_id: int) -> GuildAudioPlayer:
+        """Retrieves or creates the centralized audio player for a guild."""
+        if guild_id not in self.audio_players:
+            ffmpeg_path = self.bot_config.get("ffmpeg_path", "ffmpeg")
+            self.audio_players[guild_id] = GuildAudioPlayer(
+                guild_id=guild_id,
+                bot=self,
+                ffmpeg_path=ffmpeg_path,
+            )
+        return self.audio_players[guild_id]
 
     def _load_config(self, config_path: str) -> Dict[str, Any]:
         """Loads root bot configuration."""
@@ -80,15 +93,9 @@ class ModularBot(commands.Bot):
         if hasattr(self, "guild_store"):
             await self.guild_store.set(guild_id, "bot", "auto_disconnect_timeout", val)
             if val == 0:
-                for service in self.service_manager.services.values():
-                    if hasattr(service, "players") and guild_id in service.players:
-                        player = service.players[guild_id]
-                        if hasattr(player, "_cancel_idle_timer"):
-                            player._cancel_idle_timer()
-                    if hasattr(service, "voice_queues") and guild_id in service.voice_queues:
-                        vq = service.voice_queues[guild_id]
-                        if hasattr(vq, "_cancel_idle_timer"):
-                            vq._cancel_idle_timer()
+                player = self.audio_players.get(guild_id)
+                if player:
+                    player._cancel_idle_timer()
 
     async def setup_hook(self) -> None:
         """Asynchronous initialization hook before gateway login."""
@@ -173,24 +180,138 @@ class ModularBot(commands.Bot):
                 await interaction.response.send_message("The bot is not connected to a voice channel.", ephemeral=True)
                 return
 
-            # Stop YouTube playback if active
-            yt_service = self.service_manager.services.get("yt")
-            if yt_service and hasattr(yt_service, "players"):
-                player = yt_service.players.get(guild.id)
-                if player:
-                    player.stop()
-
-            # Stop TTS playback if active
-            tts_service = self.service_manager.services.get("tts")
-            if tts_service:
-                if hasattr(tts_service, "players") and guild.id in tts_service.players:
-                    await tts_service.players[guild.id].stop()
-                elif hasattr(tts_service, "voice_queues") and guild.id in tts_service.voice_queues:
-                    await tts_service.voice_queues[guild.id].stop()
+            # Stop active playback and flush unified audio queue
+            player = self.get_audio_player(guild.id)
+            player.stop()
 
             ch_name = vc.channel.name if vc.channel else "voice"
             await vc.disconnect(force=True)
             await interaction.response.send_message(f"Disconnected from `{ch_name}` and stopped playback.")
+
+        @bot_group.command(
+            name="pause",
+            description="Pauses current audio playback.",
+        )
+        async def cmd_bot_pause(interaction: discord.Interaction):
+            guild = interaction.guild
+            if not guild:
+                await interaction.response.send_message("Command only available in servers.", ephemeral=True)
+                return
+
+            player = self.get_audio_player(guild.id)
+            if player.pause():
+                await interaction.response.send_message("Audio playback paused.")
+            else:
+                await interaction.response.send_message("Nothing is currently playing.", ephemeral=True)
+
+        @bot_group.command(
+            name="resume",
+            description="Resumes paused audio playback.",
+        )
+        async def cmd_bot_resume(interaction: discord.Interaction):
+            guild = interaction.guild
+            if not guild:
+                await interaction.response.send_message("Command only available in servers.", ephemeral=True)
+                return
+
+            player = self.get_audio_player(guild.id)
+            if player.resume():
+                await interaction.response.send_message("Audio playback resumed.")
+            else:
+                await interaction.response.send_message("Playback is not paused.", ephemeral=True)
+
+        @bot_group.command(
+            name="skip",
+            description="Skips the currently playing audio track.",
+        )
+        async def cmd_bot_skip(interaction: discord.Interaction):
+            guild = interaction.guild
+            if not guild:
+                await interaction.response.send_message("Command only available in servers.", ephemeral=True)
+                return
+
+            player = self.get_audio_player(guild.id)
+            current = player.current_track
+            if player.skip():
+                title = current.title if current else "current audio"
+                svc_tag = f" `[{current.service_name.upper()}]`" if (current and current.service_name) else ""
+                await interaction.response.send_message(f"Skipped: **{title}**{svc_tag}")
+            else:
+                await interaction.response.send_message("No audio is currently playing to skip.", ephemeral=True)
+
+        @bot_group.command(
+            name="stop",
+            description="Stops audio playback and clears the entire queue.",
+        )
+        async def cmd_bot_stop(interaction: discord.Interaction):
+            guild = interaction.guild
+            if not guild:
+                await interaction.response.send_message("Command only available in servers.", ephemeral=True)
+                return
+
+            player = self.get_audio_player(guild.id)
+            if not player.is_playing() and not player.is_paused() and not player.queue:
+                await interaction.response.send_message("Nothing is currently playing.", ephemeral=True)
+                return
+
+            player.stop()
+            await interaction.response.send_message("Playback stopped and audio queue cleared.")
+
+        @bot_group.command(
+            name="queue",
+            description="Shows the current audio queue and active tracks across all services.",
+        )
+        async def cmd_bot_queue(interaction: discord.Interaction):
+            guild = interaction.guild
+            if not guild:
+                await interaction.response.send_message("Command only available in servers.", ephemeral=True)
+                return
+
+            player = self.get_audio_player(guild.id)
+            current = player.current_track
+            queue_items = list(player.queue)
+
+            if not current and not queue_items:
+                await interaction.response.send_message("The audio queue is currently empty.", ephemeral=True)
+                return
+
+            embed = discord.Embed(
+                title=f"Audio Queue - {guild.name}",
+                color=discord.Color.blurple(),
+            )
+
+            if current:
+                title_display = f"[{current.title}]({current.webpage_url})" if current.webpage_url else f"**{current.title}**"
+                service_tag = f"`[{current.service_name.upper()}]`" if current.service_name else "`[CORE]`"
+                duration = f" | `{current.formatted_duration}`" if current.duration and current.duration > 0 else ""
+                req = f"\n*Requested by {current.requester}*" if current.requester else ""
+                embed.add_field(
+                    name="Currently Playing",
+                    value=f"{service_tag} {title_display}{duration}{req}",
+                    inline=False,
+                )
+
+            if queue_items:
+                queue_str = ""
+                for idx, item in enumerate(queue_items[:10], start=1):
+                    item_title = f"[{item.title}]({item.webpage_url})" if item.webpage_url else f"**{item.title}**"
+                    svc_tag = f"`[{item.service_name.upper()}]`" if item.service_name else "`[CORE]`"
+                    duration = f" | `{item.formatted_duration}`" if item.duration and item.duration > 0 else ""
+                    req = f" ({item.requester})" if item.requester else ""
+                    queue_str += f"`{idx}.` {svc_tag} {item_title}{duration}{req}\n"
+
+                if len(queue_items) > 10:
+                    queue_str += f"\n*... and {len(queue_items) - 10} more track(s)*"
+
+                embed.add_field(
+                    name=f"Up Next ({len(queue_items)} track(s))",
+                    value=queue_str,
+                    inline=False,
+                )
+            else:
+                embed.add_field(name="Up Next", value="*No upcoming audio in queue*", inline=False)
+
+            await interaction.response.send_message(embed=embed)
 
         # Autocomplete for timeout command
         async def _timeout_autocomplete(

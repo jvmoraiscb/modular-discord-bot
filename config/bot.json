@@ -2,6 +2,6 @@
   "prefix": "!",
   "description": "Modular Discord bot with independent services support",
   "sync_commands_on_startup": true,
-  "status_message": "/bot join | /tts speak | /yt play",
+  "status_message": "/bot help",
   "auto_disconnect_timeout": 0
 }

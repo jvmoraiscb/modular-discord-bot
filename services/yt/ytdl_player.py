@@ -25,7 +25,7 @@ YTDL_OPTIONS: Dict[str, Any] = {
 
 FFMPEG_OPTIONS: Dict[str, str] = {
     "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-    "options": "-vn",
+    "options": "-vn -loglevel fatal",
 }
 
 
