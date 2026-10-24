@@ -170,43 +170,9 @@ class YTService(BaseService):
             embed.description = f"**Added to queue (#{pos})**"
             await interaction.followup.send(embed=embed)
 
-    @yt_group.command(name="nowplaying", description="Shows details about the currently playing song.")
-    async def cmd_nowplaying(self, interaction: discord.Interaction):
-        guild = interaction.guild
-        if not guild:
-            await interaction.response.send_message("Command only available in servers.", ephemeral=True)
-            return
-
-        player = self.get_player(guild)
-        track = player.current_track
-
-        if not track:
-            await interaction.response.send_message("No audio is currently playing.", ephemeral=True)
-            return
-
-        embed = discord.Embed(
-            title=track.title,
-            color=discord.Color.red(),
-            description="**Currently Playing**",
-        )
-        if track.webpage_url:
-            embed.url = track.webpage_url
-        if track.thumbnail:
-            embed.set_thumbnail(url=track.thumbnail)
-        if track.uploader:
-            embed.add_field(name="Channel", value=track.uploader, inline=True)
-        embed.add_field(name="Duration", value=track.formatted_duration, inline=True)
-        embed.add_field(name="Volume", value=f"{int(track.volume * 100)}%", inline=True)
-        if track.service_name:
-            embed.add_field(name="Service", value=track.service_name.upper(), inline=True)
-        if track.requester:
-            embed.set_footer(text=f"Requested by {track.requester}")
-
-        await interaction.response.send_message(embed=embed)
-
-    @yt_group.command(name="volume", description="Sets music playback volume (1-100%).")
+    @yt_group.command(name="set_volume", description="Sets music playback volume (1-100%).")
     @app_commands.describe(level="Volume level from 1 to 100")
-    async def cmd_volume(self, interaction: discord.Interaction, level: int):
+    async def cmd_set_volume(self, interaction: discord.Interaction, level: int):
         guild = interaction.guild
         if not guild:
             await interaction.response.send_message("Command only available in servers.", ephemeral=True)

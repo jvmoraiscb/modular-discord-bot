@@ -122,6 +122,64 @@ class ModularBot(commands.Bot):
         )
 
         @bot_group.command(
+            name="help",
+            description="Displays all available bot commands and descriptions across all services.",
+        )
+        async def cmd_bot_help(interaction: discord.Interaction):
+            embed = discord.Embed(
+                title="Bot Command Reference",
+                description="List of all slash commands organized by category. Type `/` in Discord to see autocomplete suggestions.",
+                color=discord.Color.blurple(),
+            )
+
+            embed.add_field(
+                name="Core & Voice Commands (/bot)",
+                value=(
+                    "• `/bot help` - Show this list of all commands\n"
+                    "• `/bot join` - Connect the bot to your current voice channel\n"
+                    "• `/bot leave` - Disconnect from voice and stop playback\n"
+                    "• `/bot pause` - Pause current audio playback\n"
+                    "• `/bot resume` - Resume paused audio playback\n"
+                    "• `/bot skip` - Skip current audio track\n"
+                    "• `/bot stop` - Stop playback and clear the audio queue\n"
+                    "• `/bot queue` - Show the unified audio queue with service tags\n"
+                    "• `/bot nowplaying` - Show details of currently playing audio (YouTube or TTS)\n"
+                    "• `/bot set_auto_disconnect_timeout [sec]` - Set or view inactivity timeout (0 = never)\n"
+                    "• `/bot services list` - List modular services and statuses (Admin)\n"
+                    "• `/bot services reload <service>` - Hot reload a service (Admin)"
+                ),
+                inline=False,
+            )
+
+            embed.add_field(
+                name="YouTube Music Commands (/yt)",
+                value=(
+                    "• `/yt play <query>` - Stream audio from YouTube link or search query\n"
+                    "• `/yt set_volume <1-100>` - Set default music playback volume percentage for this server"
+                ),
+                inline=False,
+            )
+
+            embed.add_field(
+                name="Text-to-Speech Commands (/tts)",
+                value=(
+                    "• `/tts speak <text>` - Synthesize and speak text in your voice channel\n"
+                    "• `/tts voices` - List popular available neural voices\n"
+                    "• `/tts config` - View current server TTS configuration\n"
+                    "• `/tts set_voice <voice>` - Set default server voice (with autocomplete)\n"
+                    "• `/tts set_speed <speed>` - Set speech speed (0.5x to 2.0x)\n"
+                    "• `/tts set_volume <volume>` - Set speech playback volume percentage (1-100)\n"
+                    "• `/tts set_intro <sound>` - Set intro sound cue before speech\n"
+                    "• `/tts set_intro_delay <delay>` - Set delay before speech begins over intro sound\n"
+                    "• `/tts set_channel [channel]` - Set automatic chat-to-speech channel"
+                ),
+                inline=False,
+            )
+
+            embed.set_footer(text="Modular Discord Bot | Type / to use any command")
+            await interaction.response.send_message(embed=embed)
+
+        @bot_group.command(
             name="join",
             description="Connects the bot to your current voice channel.",
         )
@@ -310,6 +368,53 @@ class ModularBot(commands.Bot):
                 )
             else:
                 embed.add_field(name="Up Next", value="*No upcoming audio in queue*", inline=False)
+
+            await interaction.response.send_message(embed=embed)
+
+        @bot_group.command(
+            name="nowplaying",
+            description="Shows details about the currently playing audio track across all services.",
+        )
+        async def cmd_bot_nowplaying(interaction: discord.Interaction):
+            guild = interaction.guild
+            if not guild:
+                await interaction.response.send_message("Command only available in servers.", ephemeral=True)
+                return
+
+            player = self.get_audio_player(guild.id)
+            track = player.current_track
+
+            if not track:
+                await interaction.response.send_message("No audio is currently playing.", ephemeral=True)
+                return
+
+            service_label = track.service_name.upper() if track.service_name else "CORE"
+            embed = discord.Embed(
+                title="Currently Playing",
+                color=discord.Color.red() if track.service_name == "yt" else discord.Color.blurple(),
+            )
+            embed.add_field(name="Service", value=f"`[{service_label}]`", inline=True)
+            embed.add_field(name="Volume", value=f"{int(track.volume * 100)}%", inline=True)
+
+            if track.service_name == "yt":
+                title_val = f"[{track.title}]({track.webpage_url})" if track.webpage_url else track.title
+                embed.description = f"**{title_val}**"
+                if track.uploader:
+                    embed.add_field(name="Channel", value=track.uploader, inline=True)
+                if track.duration and track.duration > 0:
+                    embed.add_field(name="Duration", value=track.formatted_duration, inline=True)
+                if track.thumbnail:
+                    embed.set_thumbnail(url=track.thumbnail)
+            elif track.service_name == "tts":
+                phrase = track.text or track.title
+                embed.description = f"**Spoken Text:**\n\"{phrase}\""
+            else:
+                embed.description = f"**{track.title}**"
+                if track.duration and track.duration > 0:
+                    embed.add_field(name="Duration", value=track.formatted_duration, inline=True)
+
+            if track.requester:
+                embed.set_footer(text=f"Requested by {track.requester}")
 
             await interaction.response.send_message(embed=embed)
 

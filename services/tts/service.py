@@ -349,6 +349,7 @@ class TTSService(BaseService):
             service_name="tts",
             requester=interaction.user.display_name,
             channel=interaction.channel,
+            text=cleaned_text,
             is_temporary=True,
             options="-loglevel error",
         )
@@ -681,6 +682,7 @@ class TTSService(BaseService):
                 service_name="tts",
                 requester=message.author.display_name,
                 channel=message.channel,
+                text=cleaned,
                 is_temporary=True,
                 options="-loglevel error",
             )

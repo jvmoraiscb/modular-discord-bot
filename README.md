@@ -99,6 +99,7 @@ All core bot management, voice connection, audio playback controls, and service 
 
 | Command | Description | Permission |
 |---|---|---|
+| `/bot help` | Displays reference list of all available bot commands and descriptions | Everyone |
 | `/bot join` | Connects the bot to your current voice channel | Everyone |
 | `/bot leave` | Disconnects the bot from voice and stops active playback | Everyone |
 | `/bot pause` | Pauses currently playing audio | Everyone |
@@ -106,6 +107,7 @@ All core bot management, voice connection, audio playback controls, and service 
 | `/bot skip` | Skips the currently playing audio track | Everyone |
 | `/bot stop` | Stops audio playback and clears the entire queue | Everyone |
 | `/bot queue` | Shows the unified audio queue with service tags (yt, tts, etc.) | Everyone |
+| `/bot nowplaying` | Shows details of currently playing audio across all services (YouTube or TTS) | Everyone |
 | `/bot set_auto_disconnect_timeout [seconds]` | Sets or views server voice inactivity timeout in seconds (`0` = never disconnect) | Manage Server |
 | `/bot services list` | Lists all discovered services and their statuses | Administrator |
 | `/bot services reload <service>` | Hot-reloads code and configuration of a service | Administrator |
@@ -137,5 +139,4 @@ All YouTube streaming commands are strictly organized under the `/yt` command gr
 | Command | Description | Permission |
 |---|---|---|
 | `/yt play <query>` | Plays audio from a YouTube URL or searches YouTube keywords | Everyone |
-| `/yt nowplaying` | Displays detailed info & thumbnail for currently playing track | Everyone |
-| `/yt volume <1-100>` | Adjusts playback volume percentage for the server | Everyone |
+| `/yt set_volume <1-100>` | Adjusts playback volume percentage for the server | Everyone |

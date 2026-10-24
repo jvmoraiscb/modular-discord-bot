@@ -39,6 +39,7 @@ class AudioTrack:
     thumbnail: Optional[str] = None
     uploader: Optional[str] = None
     webpage_url: Optional[str] = None
+    text: Optional[str] = None
     is_temporary: bool = False
     before_options: Optional[str] = None
     options: Optional[str] = None
