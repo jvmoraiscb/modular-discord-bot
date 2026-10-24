@@ -622,6 +622,10 @@ class TTSService(BaseService):
         if not bound_channel_id or message.channel.id != bound_channel_id:
             return
 
+        # Do not read if the message contains files, attachments, or stickers
+        if message.attachments or message.stickers:
+            return
+
         # Ensure bot is in the voice channel of the message author
         author = message.author
         if not isinstance(author, discord.Member):

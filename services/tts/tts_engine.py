@@ -36,12 +36,16 @@ class TTSEngine:
         # Replace Discord custom emojis <:name:123> with 'name'
         text = re.sub(r"<a?:(\w+):\d+>", r"\1", text)
 
-        # Replace or filter URLs to avoid reading long link strings
+        # Remove URLs completely to avoid reading links or saying 'link'
         if filter_urls:
-            text = re.sub(r"https?://\S+", "link", text)
+            text = re.sub(r"<?(?:https?://\S+|www\.\S+)>?", "", text)
 
         # Collapse excessive whitespace
         text = re.sub(r"\s+", " ", text).strip()
+
+        # If only isolated punctuation remains after URL removal, clear it
+        if filter_urls and not any(c.isalnum() for c in text):
+            return ""
 
         # Enforce maximum text length
         if len(text) > max_length:
