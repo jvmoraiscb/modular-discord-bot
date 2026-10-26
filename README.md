@@ -33,10 +33,14 @@ discord-bot/
 │       ├── service.py       # Slash commands (/yt play, /yt queue, /yt skip, etc.)
 │       ├── music_queue.py   # Compatibility bridge to core.voice_queue
 │       └── ytdl_player.py   # yt-dlp audio extraction and FFmpeg source
+├── docs/
+│   └── architecture.md      # Detailed technical architecture guide and flow documentation
 ├── .env.example             # Environment variables template
 ├── requirements.txt         # Project dependencies
 └── main.py                  # Application entry point
 ```
+
+> **Developer Guide**: For a comprehensive, step-by-step technical explanation of the bot internals, flow diagrams, and how to create new services, see [docs/architecture.md](file:///home/jvmoraiscb/git-repositories/discord-bot/docs/architecture.md).
 
 ---
 
@@ -108,9 +112,8 @@ All core bot management, voice connection, audio playback controls, and service 
 | `/bot stop` | Stops audio playback and clears the entire queue | Everyone |
 | `/bot queue` | Shows the unified audio queue with service tags (yt, tts, etc.) | Everyone |
 | `/bot nowplaying` | Shows details of currently playing audio across all services (YouTube or TTS) | Everyone |
+| `/bot config` | Displays bot configuration, guild settings, and modular service statuses | Everyone |
 | `/bot set_auto_disconnect_timeout [seconds]` | Sets or views server voice inactivity timeout in seconds (`0` = never disconnect) | Manage Server |
-| `/bot services list` | Lists all discovered services and their statuses | Administrator |
-| `/bot services reload <service>` | Hot-reloads code and configuration of a service | Administrator |
 
 ---
 
@@ -121,14 +124,15 @@ All TTS functionality and configuration commands are strictly organized under th
 | Command | Description | Permission |
 |---|---|---|
 | `/tts speak <text>` | Synthesizes and speaks text in your voice channel | Everyone |
-| `/tts voices` | Lists popular available neural voices (English, Portuguese, etc.) | Everyone |
 | `/tts config` | Shows current server TTS configuration | Everyone |
 | `/tts set_voice <voice>` | Changes default neural voice for this server (with autocomplete) | Manage Server |
-| `/tts set_speed <speed>` | Adjusts speech speed in 0.1x increments (e.g., `1.0x`, `1.2x`, `0.8x`) | Manage Server |
+| `/tts set_voice_speed <speed>` | Adjusts speech speed in 0.1x increments (e.g., `1.0x`, `1.2x`, `0.8x`) | Manage Server |
 | `/tts set_volume <volume>` | Sets default speech playback volume percentage for this server (1-100) | Manage Server |
+| `/tts set_max_text_length <length>` | Sets maximum allowed text length for speech synthesis | Manage Server |
 | `/tts set_intro <sound>` | Sets sound cue played before messages from `assets/sounds/` (with autocomplete) | Manage Server |
 | `/tts set_intro_delay <delay>` | Sets delay before speech begins over intro sound (e.g., `1.0s`, `0.5s`) | Manage Server |
 | `/tts set_channel [channel]` | Sets a text channel to be automatically read aloud in voice (leave empty to disable) | Manage Server |
+| `/tts help` | Displays available commands and usage guide for the Text-to-Speech service | Everyone |
 
 ---
 
@@ -139,4 +143,6 @@ All YouTube streaming commands are strictly organized under the `/yt` command gr
 | Command | Description | Permission |
 |---|---|---|
 | `/yt play <query>` | Plays audio from a YouTube URL or searches YouTube keywords | Everyone |
+| `/yt config` | Shows current YouTube playback configuration for this server | Everyone |
 | `/yt set_volume <1-100>` | Adjusts playback volume percentage for the server | Everyone |
+| `/yt help` | Displays available commands and usage guide for the YouTube music service | Everyone |

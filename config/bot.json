@@ -3,5 +3,7 @@
   "description": "Modular Discord bot with independent services support",
   "sync_commands_on_startup": true,
   "status_message": "/bot help",
-  "auto_disconnect_timeout": 0
+  "auto_disconnect_timeout": 0,
+  "auto_disconnect_timeout_min": 0,
+  "auto_disconnect_timeout_max": 86400
 }

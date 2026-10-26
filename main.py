@@ -59,7 +59,7 @@ def main() -> None:
     logger = logging.getLogger("bot.main")
 
     token = os.getenv("DISCORD_TOKEN")
-    if not token or token.strip() == "" or token == "your_token_here" or token == "seu_token_aqui":
+    if not token or token.strip() == "" or token == "your_token_here":
         logger.error(
             "\n"
             "===============================================================\n"

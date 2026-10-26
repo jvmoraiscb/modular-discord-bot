@@ -9,11 +9,23 @@ import edge_tts
 
 logger = logging.getLogger("bot.service.tts.engine")
 
+from services.tts.defaults import (
+    DEFAULT_TEMP_DIR,
+    DEFAULT_MAX_TEXT_LENGTH,
+    DEFAULT_VOICE,
+    DEFAULT_RATE,
+    DEFAULT_PITCH,
+    DEFAULT_SYNTH_VOLUME,
+    DEFAULT_DELAY_SECONDS,
+    DEFAULT_FFMPEG_PATH,
+    DEFAULT_SAMPLE_RATE,
+)
+
 
 class TTSEngine:
     """Text-to-Speech synthesis engine using Microsoft Edge-TTS neural voices."""
 
-    def __init__(self, temp_dir: str = "data/temp") -> None:
+    def __init__(self, temp_dir: str = DEFAULT_TEMP_DIR) -> None:
         self.temp_dir = Path(temp_dir)
         self.temp_dir.mkdir(parents=True, exist_ok=True)
         self._voices_cache: Optional[List[Dict[str, Any]]] = None
@@ -21,7 +33,7 @@ class TTSEngine:
     def clean_text(
         self,
         text: str,
-        max_length: int = 350,
+        max_length: int = DEFAULT_MAX_TEXT_LENGTH,
         filter_urls: bool = True,
     ) -> str:
         """Cleans and sanitizes raw input text for natural speech synthesis."""
@@ -56,10 +68,10 @@ class TTSEngine:
     async def synthesize(
         self,
         text: str,
-        voice: str = "pt-BR-FranciscaNeural",
-        rate: str = "+0%",
-        pitch: str = "+0Hz",
-        volume: str = "+0%",
+        voice: str = DEFAULT_VOICE,
+        rate: str = DEFAULT_RATE,
+        pitch: str = DEFAULT_PITCH,
+        volume: str = DEFAULT_SYNTH_VOLUME,
     ) -> Path:
         """Synthesizes text into an MP3 audio file and returns its path."""
         if not text.strip():
@@ -89,8 +101,8 @@ class TTSEngine:
         self,
         speech_path: Path,
         intro_path: Path,
-        delay_seconds: float = 0.5,
-        ffmpeg_path: str = "ffmpeg",
+        delay_seconds: float = DEFAULT_DELAY_SECONDS,
+        ffmpeg_path: str = DEFAULT_FFMPEG_PATH,
     ) -> Path:
         """Mixes intro sound with speech so speech starts playing after delay_seconds."""
         if not intro_path.exists():

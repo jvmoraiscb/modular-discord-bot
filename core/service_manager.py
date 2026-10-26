@@ -34,6 +34,17 @@ class ServiceManager:
             except Exception as e:
                 logger.error("Failed to read configuration for '%s' at %s: %s", service_name, config_path, e)
                 return {}
+
+        # If config file does not exist, load defaults from the service defaults module
+        try:
+            defaults_mod = importlib.import_module(f"{self.services_dir.name}.{service_name}.defaults")
+            if hasattr(defaults_mod, "get_default_config"):
+                defaults = defaults_mod.get_default_config()
+                self.save_service_config(service_name, defaults)
+                return defaults
+        except Exception:
+            pass
+
         return {}
 
     def save_service_config(self, service_name: str, config: Dict) -> None:

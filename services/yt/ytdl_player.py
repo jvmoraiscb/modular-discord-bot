@@ -28,6 +28,14 @@ FFMPEG_OPTIONS: Dict[str, str] = {
     "options": "-vn -loglevel fatal",
 }
 
+from services.yt.defaults import (
+    DEFAULT_FFMPEG_PATH,
+    MIN_VOLUME_FLOAT,
+    MAX_VOLUME_FLOAT,
+)
+
+DEFAULT_STREAM_VOLUME = 1.0
+
 
 def format_duration(seconds: Optional[int]) -> str:
     """Formats duration in seconds to standard MM:SS or HH:MM:SS."""
@@ -118,8 +126,8 @@ class YTDLExtractor:
     @staticmethod
     def create_audio_source(
         song: Song,
-        volume: float = 1.0,
-        ffmpeg_path: str = "ffmpeg",
+        volume: float = DEFAULT_STREAM_VOLUME,
+        ffmpeg_path: str = DEFAULT_FFMPEG_PATH,
     ) -> discord.PCMVolumeTransformer:
         """Creates an FFmpeg audio source from direct stream URL with volume control."""
         source = discord.FFmpegPCMAudio(
@@ -128,5 +136,5 @@ class YTDLExtractor:
             before_options=FFMPEG_OPTIONS["before_options"],
             options=FFMPEG_OPTIONS["options"],
         )
-        clamped_volume = max(0.0, min(volume, 2.0))
+        clamped_volume = max(MIN_VOLUME_FLOAT, min(volume, MAX_VOLUME_FLOAT))
         return discord.PCMVolumeTransformer(source, volume=clamped_volume)
