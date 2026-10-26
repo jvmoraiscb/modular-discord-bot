@@ -10,13 +10,25 @@ import yt_dlp
 
 logger = logging.getLogger("bot.service.yt.ytdl")
 
+from services.yt.defaults import (
+    DEFAULT_FFMPEG_PATH,
+    DEFAULT_COOKIES_PATH,
+    DEFAULT_YTDL_FORMAT,
+    DEFAULT_REMOTE_COMPONENTS,
+    DEFAULT_JS_RUNTIMES,
+    MIN_VOLUME_FLOAT,
+    MAX_VOLUME_FLOAT,
+)
+
 YTDL_OPTIONS: Dict[str, Any] = {
-    "format": "bestaudio/best",
+    "format": DEFAULT_YTDL_FORMAT,
     "noplaylist": True,
     "quiet": True,
     "no_warnings": True,
     "default_search": "ytsearch1",
     "source_address": "0.0.0.0",
+    "remote_components": list(DEFAULT_REMOTE_COMPONENTS),
+    "js_runtimes": dict(DEFAULT_JS_RUNTIMES),
     "extractor_args": {
         "youtube": {
             "player_client": ["android", "web", "mweb"],
@@ -28,13 +40,6 @@ FFMPEG_OPTIONS: Dict[str, str] = {
     "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
     "options": "-vn -loglevel fatal",
 }
-
-from services.yt.defaults import (
-    DEFAULT_FFMPEG_PATH,
-    DEFAULT_COOKIES_PATH,
-    MIN_VOLUME_FLOAT,
-    MAX_VOLUME_FLOAT,
-)
 
 DEFAULT_STREAM_VOLUME = 1.0
 

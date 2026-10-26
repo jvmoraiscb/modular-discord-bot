@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 DEFAULT_VOLUME = 10
 DEFAULT_VOLUME_MIN = 1
@@ -10,6 +10,13 @@ MIN_VOLUME_FLOAT = 0.0
 MAX_VOLUME_FLOAT = 2.0
 DEFAULT_FFMPEG_PATH = "ffmpeg"
 DEFAULT_COOKIES_PATH = "cookies.txt"
+DEFAULT_YTDL_FORMAT = "bestaudio/ba/b/best"
+DEFAULT_REMOTE_COMPONENTS: List[str] = ["ejs:github"]
+DEFAULT_JS_RUNTIMES: Dict[str, Dict[str, Any]] = {
+    "node": {},
+    "deno": {},
+    "quickjs": {},
+}
 
 DEFAULT_YT_CONFIG: Dict[str, Any] = {
     "enabled": True,
