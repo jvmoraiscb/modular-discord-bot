@@ -97,6 +97,41 @@ LOG_LEVEL=INFO
 
 ---
 
+## Docker / VPS Deployment
+
+### Using Docker Compose (Recommended)
+1. Configure your `.env` file with `DISCORD_TOKEN`.
+2. Build and run in background:
+```bash
+docker compose up -d --build
+```
+3. View logs:
+```bash
+docker compose logs -f
+```
+4. Stop container:
+```bash
+docker compose down
+```
+
+### Using Plain Docker
+1. Build the Docker image:
+```bash
+docker build -t discord-bot .
+```
+2. Run the container with persistent data and configuration:
+```bash
+docker run -d \
+  --name discord-bot \
+  --restart unless-stopped \
+  --env-file .env \
+  -v "$(pwd)/data:/app/data" \
+  -v "$(pwd)/config:/app/config" \
+  discord-bot
+```
+
+---
+
 ## Core Bot Commands (/bot)
 
 All core bot management, voice connection, audio playback controls, and service administration commands are organized under the `/bot` command group:

@@ -1,0 +1,27 @@
+.git
+.gitignore
+.venv
+venv
+env
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Environment files
+.env
+
+# Local data & logs (mounted via volume)
+data/
+*.log
+*.mp3
+*.wav
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+
+# Temporary documentation and scratchpad
+temp-docs/

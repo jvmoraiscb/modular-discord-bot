@@ -22,4 +22,5 @@ data/
 .idea/
 .DS_Store
 
+# Temporary documentation and scratchpad
 temp-docs/
