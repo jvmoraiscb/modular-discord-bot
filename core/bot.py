@@ -83,17 +83,14 @@ class ModularBot(commands.Bot):
 
     def get_guild_timeout(self, guild_id: Optional[int]) -> int:
         """Returns configured inactivity timeout in seconds (0 = never disconnect)."""
-        default_timeout = int(self.bot_config.get("auto_disconnect_timeout", DEFAULT_AUTO_DISCONNECT_TIMEOUT))
         if guild_id is not None and hasattr(self, "guild_store"):
             custom_val = self.guild_store.get(guild_id, "bot", "auto_disconnect_timeout")
-            if custom_val is None:
-                custom_val = self.guild_store.get(guild_id, "tts", "auto_disconnect_timeout")
             if custom_val is not None:
                 try:
                     return max(0, int(custom_val))
                 except (ValueError, TypeError):
                     pass
-        return max(0, default_timeout)
+        return DEFAULT_AUTO_DISCONNECT_TIMEOUT
 
     async def set_guild_timeout(self, guild_id: int, timeout: int) -> None:
         """Saves custom inactivity timeout in seconds for a guild."""

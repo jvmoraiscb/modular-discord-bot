@@ -12,7 +12,6 @@ DEFAULT_FFMPEG_PATH = "ffmpeg"
 
 DEFAULT_YT_CONFIG: Dict[str, Any] = {
     "enabled": True,
-    "volume": DEFAULT_VOLUME,
     "volume_min": DEFAULT_VOLUME_MIN,
     "volume_max": DEFAULT_VOLUME_MAX,
     "ffmpeg_path": DEFAULT_FFMPEG_PATH,

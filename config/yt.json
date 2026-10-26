@@ -1,6 +1,5 @@
 {
   "enabled": true,
-  "volume": 10,
   "volume_min": 1,
   "volume_max": 100,
   "ffmpeg_path": "ffmpeg"

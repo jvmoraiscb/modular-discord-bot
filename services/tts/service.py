@@ -117,13 +117,7 @@ class TTSService(BaseService):
 
     def get_service_volume(self, guild_id: Optional[int]) -> float:
         """Returns the configured TTS playback volume as float (0.0 - 2.0)."""
-        raw_vol = self.get_guild_setting(
-            guild_id, "volume", self.config.get("volume")
-        )
-        if raw_vol is None:
-            raw_vol = self.get_guild_setting(
-                guild_id, "default_volume", self.config.get("default_volume", DEFAULT_VOLUME)
-            )
+        raw_vol = self.get_guild_setting(guild_id, "volume", DEFAULT_VOLUME)
         try:
             vol = float(raw_vol)
             if vol > MAX_VOLUME_FLOAT:
@@ -138,10 +132,7 @@ class TTSService(BaseService):
 
     def get_guild_speed(self, guild_id: Optional[int]) -> float:
         """Returns the configured speed multiplier for a guild (default 1.0)."""
-        default_speed = self.config.get("voice_speed", self.config.get("default_speed", DEFAULT_VOICE_SPEED))
-        val = self.get_guild_setting(guild_id, "voice_speed")
-        if val is None:
-            val = self.get_guild_setting(guild_id, "default_speed", default_speed)
+        val = self.get_guild_setting(guild_id, "voice_speed", DEFAULT_VOICE_SPEED)
         try:
             return round(float(val), 1)
         except (ValueError, TypeError):
@@ -149,12 +140,11 @@ class TTSService(BaseService):
 
     def get_guild_intro_delay(self, guild_id: Optional[int]) -> float:
         """Returns the configured delay in seconds before speech starts over the intro sound."""
-        default_delay = self.config.get("intro_delay", DEFAULT_INTRO_DELAY)
-        val = self.get_guild_setting(guild_id, "intro_delay", default_delay)
+        val = self.get_guild_setting(guild_id, "intro_delay", DEFAULT_INTRO_DELAY)
         try:
             return round(float(val), 2)
         except (ValueError, TypeError):
-            return round(float(default_delay), 2)
+            return round(float(DEFAULT_INTRO_DELAY), 2)
 
     def _speed_to_rate(self, speed: float) -> str:
         """Converts speed multiplier (e.g. 1.0, 1.2, 0.8) to Edge-TTS rate string (+0%, +20%, -20%)."""
@@ -267,19 +257,9 @@ class TTSService(BaseService):
             return
 
         # Guild-specific or fallback default settings
-        max_len = int(self.get_guild_setting(guild.id, "max_text_length", self.config.get("max_text_length", DEFAULT_MAX_TEXT_LENGTH)))
-        filter_urls = bool(self.get_guild_setting(guild.id, "filter_urls", DEFAULT_FILTER_URLS))
-        voice = str(
-            self.get_guild_setting(
-                guild.id,
-                "voice",
-                self.get_guild_setting(
-                    guild.id,
-                    "default_voice",
-                    self.config.get("voice", self.config.get("default_voice", DEFAULT_VOICE)),
-                ),
-            )
-        )
+        max_len = int(self.get_guild_setting(guild.id, "max_text_length", DEFAULT_MAX_TEXT_LENGTH))
+        filter_urls = bool(self.config.get("filter_urls", DEFAULT_FILTER_URLS))
+        voice = str(self.get_guild_setting(guild.id, "voice", DEFAULT_VOICE))
 
         # Calculate rate string from 0.1x speed multiplier
         speed = self.get_guild_speed(guild.id)
@@ -308,7 +288,7 @@ class TTSService(BaseService):
             intro_path = Path(sounds_dir_str) / intro_sound
             if intro_path.exists():
                 intro_delay = self.get_guild_intro_delay(guild.id)
-                ffmpeg_path = self.get_guild_setting(guild.id, "ffmpeg_path", DEFAULT_FFMPEG_PATH)
+                ffmpeg_path = self.config.get("ffmpeg_path", self.bot.bot_config.get("ffmpeg_path", DEFAULT_FFMPEG_PATH))
                 audio_path = await self.engine.mix_with_intro(
                     speech_path=audio_path,
                     intro_path=intro_path,
@@ -391,15 +371,14 @@ class TTSService(BaseService):
             await interaction.response.send_message("Command only available in servers.", ephemeral=True)
             return
 
-        cfg = self.get_effective_config(guild.id)
-        voice = cfg.get("voice", cfg.get("default_voice", DEFAULT_VOICE))
+        voice = str(self.get_guild_setting(guild.id, "voice", DEFAULT_VOICE))
         speed = self.get_guild_speed(guild.id)
         intro_sound = self.get_guild_setting(guild.id, "intro_sound", DEFAULT_INTRO_SOUND)
         intro_display = f"`{intro_sound}`" if intro_sound and intro_sound != DEFAULT_INTRO_SOUND else "None (disabled)"
         intro_delay = self.get_guild_intro_delay(guild.id)
         bound_ch_id = self.get_guild_setting(guild.id, "bound_channel_id")
         bound_ch_str = f"<#{bound_ch_id}>" if bound_ch_id else "None (uses `/tts speak` commands)"
-        max_len = int(self.get_guild_setting(guild.id, "max_text_length", self.config.get("max_text_length", DEFAULT_MAX_TEXT_LENGTH)))
+        max_len = int(self.get_guild_setting(guild.id, "max_text_length", DEFAULT_MAX_TEXT_LENGTH))
         vol_pct = int(self.get_service_volume(guild.id) * 100)
 
         vol_min, vol_max = self.get_numeric_bounds("volume", DEFAULT_VOLUME_MIN, DEFAULT_VOLUME_MAX)
@@ -670,19 +649,9 @@ class TTSService(BaseService):
             if not vc or not vc.is_connected():
                 return
 
-        max_len = int(self.get_guild_setting(message.guild.id, "max_text_length", self.config.get("max_text_length", DEFAULT_MAX_TEXT_LENGTH)))
-        filter_urls = bool(self.get_guild_setting(message.guild.id, "filter_urls", DEFAULT_FILTER_URLS))
-        voice = str(
-            self.get_guild_setting(
-                message.guild.id,
-                "voice",
-                self.get_guild_setting(
-                    message.guild.id,
-                    "default_voice",
-                    self.config.get("voice", self.config.get("default_voice", DEFAULT_VOICE)),
-                ),
-            )
-        )
+        max_len = int(self.get_guild_setting(message.guild.id, "max_text_length", DEFAULT_MAX_TEXT_LENGTH))
+        filter_urls = bool(self.config.get("filter_urls", DEFAULT_FILTER_URLS))
+        voice = str(self.get_guild_setting(message.guild.id, "voice", DEFAULT_VOICE))
 
         # Calculate rate string from 0.1x speed multiplier
         speed = self.get_guild_speed(message.guild.id)
@@ -707,7 +676,7 @@ class TTSService(BaseService):
                 intro_path = Path(sounds_dir_str) / intro_sound
                 if intro_path.exists():
                     intro_delay = self.get_guild_intro_delay(message.guild.id)
-                    ffmpeg_path = self.get_guild_setting(message.guild.id, "ffmpeg_path", DEFAULT_FFMPEG_PATH)
+                    ffmpeg_path = self.config.get("ffmpeg_path", self.bot.bot_config.get("ffmpeg_path", DEFAULT_FFMPEG_PATH))
                     audio_path = await self.engine.mix_with_intro(
                         speech_path=audio_path,
                         intro_path=intro_path,

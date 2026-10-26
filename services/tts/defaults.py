@@ -82,18 +82,12 @@ DELAY_CHOICES: List[Tuple[str, str]] = [
 
 DEFAULT_TTS_CONFIG: Dict[str, Any] = {
     "enabled": True,
-    "volume": DEFAULT_VOLUME,
     "volume_min": DEFAULT_VOLUME_MIN,
     "volume_max": DEFAULT_VOLUME_MAX,
-    "voice": DEFAULT_VOICE,
-    "voice_speed": DEFAULT_VOICE_SPEED,
     "voice_speed_min": DEFAULT_VOICE_SPEED_MIN,
     "voice_speed_max": DEFAULT_VOICE_SPEED_MAX,
-    "intro_sound": DEFAULT_INTRO_SOUND,
-    "intro_delay": DEFAULT_INTRO_DELAY,
     "intro_delay_min": DEFAULT_INTRO_DELAY_MIN,
     "intro_delay_max": DEFAULT_INTRO_DELAY_MAX,
-    "max_text_length": DEFAULT_MAX_TEXT_LENGTH,
     "max_text_length_min": DEFAULT_MAX_TEXT_LENGTH_MIN,
     "max_text_length_max": DEFAULT_MAX_TEXT_LENGTH_MAX,
     "sounds_dir": DEFAULT_SOUNDS_DIR,

@@ -46,14 +46,14 @@ discord-bot/
 
 ## How the Architecture Works
 
-1. **Dedicated Service Configuration (`config/<service>.json`)**:
-   Each service has its own JSON file defining global defaults (default volume, voices, timeouts, limits).
-2. **Dynamic Per-Guild Overrides (`data/guild_settings.json`)**:
-   Individual servers can customize their preferences (voice, rate, intro sounds, volume) via slash commands. Overrides are loaded transparently.
+1. **Global Service Configuration (`config/<service>.json`)**:
+   Each service has its own JSON file defining global settings (enabled state, validation bounds `_min`/`_max`, binary paths, sound directories).
+2. **Dynamic Per-Guild Overrides (`data/guild_settings.db`)**:
+   Individual servers can customize their preferences (voice, rate, intro sounds, volume) via slash commands. Overrides are stored in dedicated SQLite tables (`bot_config`, `tts_config`, `yt_config`).
 3. **Auto Discovery & Pluggability**:
    Any new folder created inside `services/` containing a `service.py` subclassing `BaseService` is discovered and loaded automatically by `ServiceManager`.
 4. **Unified Core Audio Queue (`core/voice_queue.py`)**:
-   All audio-producing services (`tts`, `yt`, etc.) feed into a single unified guild queue managed by the core. Each service enqueues audio with its desired playback volume defined in its service configuration (`config/tts.json`, `config/yt.json`) or per-guild settings, preventing audio conflicts and duplicate disconnect timers.
+   All audio-producing services (`tts`, `yt`, etc.) feed into a single unified guild queue managed by the core. Each service enqueues audio with its desired playback volume defined in its service defaults or per-guild settings, preventing audio conflicts and duplicate disconnect timers.
 
 ---
 

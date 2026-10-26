@@ -38,13 +38,7 @@ class YTService(BaseService):
 
     def get_service_volume(self, guild_id: Optional[int]) -> float:
         """Returns the configured YouTube playback volume as float (0.0 - 2.0)."""
-        raw_vol = self.get_guild_setting(
-            guild_id, "volume", self.config.get("volume")
-        )
-        if raw_vol is None:
-            raw_vol = self.get_guild_setting(
-                guild_id, "default_volume", self.config.get("default_volume", DEFAULT_VOLUME)
-            )
+        raw_vol = self.get_guild_setting(guild_id, "volume", DEFAULT_VOLUME)
         try:
             vol = float(raw_vol)
             if vol > MAX_VOLUME_FLOAT:

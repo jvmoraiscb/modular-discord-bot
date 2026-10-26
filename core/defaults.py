@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Tuple
 
 DEFAULT_CONFIG_PATH = "config/bot.json"
+DEFAULT_DB_PATH = "data/guild_settings.db"
 DEFAULT_PREFIX = "!"
 DEFAULT_DESCRIPTION = "Modular Discord Bot"
 DEFAULT_FFMPEG_PATH = "ffmpeg"
@@ -26,12 +27,11 @@ TIMEOUT_CHOICES: List[Tuple[str, int]] = [
 DEFAULT_BOT_CONFIG: Dict[str, Any] = {
     "prefix": DEFAULT_PREFIX,
     "description": DEFAULT_DESCRIPTION,
-    "ffmpeg_path": DEFAULT_FFMPEG_PATH,
-    "auto_disconnect_timeout": DEFAULT_AUTO_DISCONNECT_TIMEOUT,
-    "timeout_min": DEFAULT_TIMEOUT_MIN,
-    "timeout_max": DEFAULT_TIMEOUT_MAX,
-    "sync_commands": DEFAULT_SYNC_COMMANDS,
+    "sync_commands_on_startup": DEFAULT_SYNC_COMMANDS,
     "status_message": DEFAULT_STATUS_MESSAGE,
+    "ffmpeg_path": DEFAULT_FFMPEG_PATH,
+    "auto_disconnect_timeout_min": DEFAULT_TIMEOUT_MIN,
+    "auto_disconnect_timeout_max": DEFAULT_TIMEOUT_MAX,
 }
 
 
