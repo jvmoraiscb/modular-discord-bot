@@ -1,10 +1,11 @@
 services:
   discord-bot:
     build: .
-    container_name: discord-bot
+    container_name: modular-discord-bot
     restart: unless-stopped
     env_file:
       - .env
     volumes:
       - ./data:/app/data
       - ./config:/app/config
+      - ./cookies.txt:/app/cookies.txt:ro

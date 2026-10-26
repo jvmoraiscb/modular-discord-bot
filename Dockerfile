@@ -1,5 +1,8 @@
 FROM python:3.12-slim
 
+# Copy official Deno binary for yt-dlp JavaScript challenge solving (EJS)
+COPY --from=denoland/deno:bin /deno /usr/local/bin/deno
+
 # Prevent Python from writing .pyc files and enable unbuffered logging
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -10,7 +13,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     libopus0 \
-    ca-certificates \n    nodejs \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies first to take advantage of Docker layer caching
@@ -26,7 +29,6 @@ COPY config/ /app/config/
 COPY core/ /app/core/
 COPY services/ /app/services/
 COPY main.py /app/
-COPY cookies.txt* /app/
 
 # Declare persistent data volume for SQLite database, temp files, and logs
 VOLUME ["/app/data"]
