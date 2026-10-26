@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+from pathlib import Path
 from typing import Dict, List, Optional
 
 import discord
@@ -17,6 +18,7 @@ from services.yt.defaults import (
     DEFAULT_VOLUME_MAX,
     DEFAULT_VOICE_CONNECT_TIMEOUT,
     DEFAULT_VOLUME_FLOAT_FALLBACK,
+    DEFAULT_COOKIES_PATH,
     MIN_VOLUME_FLOAT,
     MAX_VOLUME_FLOAT,
 )
@@ -30,7 +32,8 @@ class YTService(BaseService):
 
     def __init__(self, bot, config: Optional[dict] = None) -> None:
         super().__init__(bot, config)
-        self.extractor = YTDLExtractor()
+        cookies_path = self.config.get("cookies_path", DEFAULT_COOKIES_PATH)
+        self.extractor = YTDLExtractor(cookies_path=cookies_path)
 
     def get_player(self, guild: discord.Guild) -> GuildAudioPlayer:
         """Retrieves the unified audio player for this guild from the bot core."""
@@ -224,12 +227,16 @@ class YTService(BaseService):
         vol_min, vol_max = self.get_numeric_bounds("volume", DEFAULT_VOLUME_MIN, DEFAULT_VOLUME_MAX)
         status_str = "Active" if self.name in self.bot.service_manager.services else "Disabled"
 
+        cookies_path = self.config.get("cookies_path", DEFAULT_COOKIES_PATH)
+        cookies_status = "Loaded" if Path(cookies_path).is_file() else "Not found"
+
         embed = discord.Embed(
             title=f"YouTube Configuration - {guild.name}",
             color=discord.Color.red(),
         )
         embed.add_field(name="Playback Volume", value=f"`{vol_pct}%` (range: {vol_min}-{vol_max}%)", inline=True)
         embed.add_field(name="Service Status", value=f"`{status_str}`", inline=True)
+        embed.add_field(name="Cookies File", value=f"`{cookies_path}` ({cookies_status})", inline=True)
         embed.add_field(
             name="Available Commands",
             value=(

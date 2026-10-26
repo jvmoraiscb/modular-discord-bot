@@ -2,6 +2,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 import logging
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 import discord
@@ -30,6 +31,7 @@ FFMPEG_OPTIONS: Dict[str, str] = {
 
 from services.yt.defaults import (
     DEFAULT_FFMPEG_PATH,
+    DEFAULT_COOKIES_PATH,
     MIN_VOLUME_FLOAT,
     MAX_VOLUME_FLOAT,
 )
@@ -67,8 +69,22 @@ class Song:
 class YTDLExtractor:
     """Handles asynchronous extraction and preparation of YouTube audio streams."""
 
-    def __init__(self) -> None:
-        self.ydl = yt_dlp.YoutubeDL(YTDL_OPTIONS)
+    def __init__(self, cookies_path: Optional[str] = DEFAULT_COOKIES_PATH) -> None:
+        opts = dict(YTDL_OPTIONS)
+        self.cookies_path = cookies_path or DEFAULT_COOKIES_PATH
+        if self.cookies_path:
+            cookie_file = Path(self.cookies_path)
+            if cookie_file.is_file():
+                opts["cookiefile"] = str(cookie_file.resolve())
+                opts["extractor_args"] = {
+                    "youtube": {
+                        "player_client": ["web", "mweb", "android"],
+                    }
+                }
+                logger.info("Using YouTube cookies from: %s", cookie_file)
+            else:
+                logger.warning("Configured cookies path '%s' not found. Continuing without cookies.", self.cookies_path)
+        self.ydl = yt_dlp.YoutubeDL(opts)
 
     async def extract_song(
         self,

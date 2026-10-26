@@ -26,6 +26,7 @@ COPY config/ /app/config/
 COPY core/ /app/core/
 COPY services/ /app/services/
 COPY main.py /app/
+COPY cookies.txt* /app/
 
 # Declare persistent data volume for SQLite database, temp files, and logs
 VOLUME ["/app/data"]

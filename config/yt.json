@@ -2,5 +2,6 @@
   "enabled": true,
   "volume_min": 1,
   "volume_max": 100,
-  "ffmpeg_path": "ffmpeg"
+  "ffmpeg_path": "ffmpeg",
+  "cookies_path": "cookies.txt"
 }
