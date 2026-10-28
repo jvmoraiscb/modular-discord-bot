@@ -1,7 +1,40 @@
 {
   "enabled": true,
+  "volume": 10,
   "volume_min": 1,
   "volume_max": 100,
-  "ffmpeg_path": "ffmpeg",
-  "cookies_path": "cookies.txt"
+  "volume_float_min": 0.0,
+  "volume_float_max": 2.0,
+  "volume_float_fallback": 0.1,
+  "voice_connect_timeout": 15.0,
+  "cookies_path": "cookies.txt",
+  "temp_dir": "data/temp",
+  "ytdl_format": "bestaudio/ba/b/best",
+  "max_discord_upload_bytes": 26214400,
+  "download_video_format": "b[ext=mp4]/bv*[ext=mp4]+ba[ext=m4a]/b/best",
+  "download_audio_format": "bestaudio/best",
+  "audio_postprocessor_codec": "mp3",
+  "audio_postprocessor_quality": "192",
+  "max_filename_length": 60,
+  "download_search_prefix": "ytsearch1",
+  "video_merge_format": "mp4",
+  "source_address": "0.0.0.0",
+  "player_clients": [
+    "android",
+    "web",
+    "mweb"
+  ],
+  "cookie_player_clients": [
+    "web",
+    "mweb",
+    "android"
+  ],
+  "remote_components": [
+    "ejs:github"
+  ],
+  "js_runtimes": {
+    "node": {},
+    "deno": {},
+    "quickjs": {}
+  }
 }

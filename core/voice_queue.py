@@ -1,4 +1,6 @@
+"""Centralized voice playback queue and state management."""
 from __future__ import annotations
+
 import asyncio
 from collections import deque
 from dataclasses import dataclass
@@ -7,6 +9,8 @@ from pathlib import Path
 from typing import Deque, Optional, TYPE_CHECKING, Union
 
 import discord
+
+from core.ffmpeg import create_audio_source
 
 if TYPE_CHECKING:
     from core.bot import ModularBot
@@ -27,14 +31,16 @@ def format_duration(seconds: Optional[int]) -> str:
 
 @dataclass
 class AudioTrack:
-    """Represents a playable audio track in the unified voice queue."""
+    """Represents a playable audio track with metadata and required playback parameters."""
 
     title: str
     source: Union[str, Path]
-    volume: float = 1.0
-    service_name: str = ""
-    requester: str = ""
-    channel: Optional[discord.abc.Messageable] = None
+    volume: float
+    volume_min: float
+    volume_max: float
+    service_name: Optional[str] = None
+    requester: Optional[str] = None
+    channel: Optional[discord.TextChannel] = None
     duration: Optional[int] = None
     thumbnail: Optional[str] = None
     uploader: Optional[str] = None
@@ -62,11 +68,9 @@ class GuildAudioPlayer:
         self,
         guild_id: int,
         bot: ModularBot,
-        ffmpeg_path: str = "ffmpeg",
     ) -> None:
         self.guild_id = guild_id
         self.bot = bot
-        self.ffmpeg_path = ffmpeg_path
 
         self.queue: Deque[AudioTrack] = deque()
         self.current_track: Optional[AudioTrack] = None
@@ -84,9 +88,7 @@ class GuildAudioPlayer:
     @property
     def idle_timeout(self) -> int:
         """Retrieves inactivity timeout in seconds from the bot configuration."""
-        if hasattr(self.bot, "get_guild_timeout"):
-            return self.bot.get_guild_timeout(self.guild_id)
-        return 300
+        return self.bot.get_guild_timeout(self.guild_id)
 
     def is_playing(self) -> bool:
         """Returns True if audio is actively playing on the voice client."""
@@ -119,7 +121,6 @@ class GuildAudioPlayer:
         self._cancel_idle_timer()
         vc = self.voice_client
 
-        # Clean up temporary file for the finished track
         if self.current_track:
             self._cleanup_track(self.current_track)
             self.current_track = None
@@ -139,31 +140,21 @@ class GuildAudioPlayer:
 
         track = self.queue.popleft()
         self.current_track = track
+        v_min = float(track.volume_min)
+        v_max = float(track.volume_max)
 
         try:
-            # Default options based on stream vs local file
-            before_opts = track.before_options
-            if before_opts is None:
-                before_opts = (
-                    "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"
-                    if track.is_stream
-                    else ""
-                )
-
-            opts = track.options
-            if opts is None:
-                opts = "-vn -loglevel fatal" if track.is_stream else "-loglevel error"
-
-            raw_source = discord.FFmpegPCMAudio(
-                source=str(track.source),
-                executable=self.ffmpeg_path,
-                before_options=before_opts,
-                options=opts,
+            audio_source = create_audio_source(
+                source=track.source,
+                is_stream=track.is_stream,
+                volume=track.volume,
+                volume_min=v_min,
+                volume_max=v_max,
+                before_options=track.before_options,
+                options=track.options,
             )
 
-            # Apply desired volume configured for this track/service
-            vol = max(0.0, min(float(track.volume), 2.0))
-            audio_source = discord.PCMVolumeTransformer(raw_source, volume=vol)
+            vol = max(v_min, min(float(track.volume), v_max))
 
             def _after(error: Optional[Exception]) -> None:
                 if error:
@@ -231,9 +222,9 @@ class GuildAudioPlayer:
 
         self._start_idle_timer()
 
-    def set_current_volume(self, volume: float) -> None:
+    def set_current_volume(self, volume: float, volume_min: float, volume_max: float) -> None:
         """Dynamically adjusts playback volume for the active track."""
-        vol = max(0.0, min(float(volume), 2.0))
+        vol = max(float(volume_min), min(float(volume), float(volume_max)))
         if self.current_track:
             self.current_track.volume = vol
         vc = self.voice_client

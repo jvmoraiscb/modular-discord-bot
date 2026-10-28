@@ -1,45 +1,41 @@
+"""Edge-TTS speech synthesis engine delegating audio mixing to core.ffmpeg."""
 from __future__ import annotations
-import asyncio
+
 import logging
-import re
-import uuid
 from pathlib import Path
+import re
 from typing import Any, Dict, List, Optional
+import uuid
 
 import edge_tts
 
-logger = logging.getLogger("bot.service.tts.engine")
+from core.ffmpeg import mix_audio_with_intro
+from services.tts.models import TTSConfig
 
-from services.tts.defaults import (
-    DEFAULT_TEMP_DIR,
-    DEFAULT_MAX_TEXT_LENGTH,
-    DEFAULT_VOICE,
-    DEFAULT_RATE,
-    DEFAULT_PITCH,
-    DEFAULT_SYNTH_VOLUME,
-    DEFAULT_DELAY_SECONDS,
-    DEFAULT_FFMPEG_PATH,
-    DEFAULT_SAMPLE_RATE,
-)
+logger = logging.getLogger("bot.service.tts.engine")
 
 
 class TTSEngine:
     """Text-to-Speech synthesis engine using Microsoft Edge-TTS neural voices."""
 
-    def __init__(self, temp_dir: str = DEFAULT_TEMP_DIR) -> None:
-        self.temp_dir = Path(temp_dir)
+    def __init__(self, config: TTSConfig) -> None:
+        self.config = config
+        self.temp_dir = Path(config.temp_dir)
         self.temp_dir.mkdir(parents=True, exist_ok=True)
         self._voices_cache: Optional[List[Dict[str, Any]]] = None
 
     def clean_text(
         self,
         text: str,
-        max_length: int = DEFAULT_MAX_TEXT_LENGTH,
-        filter_urls: bool = True,
+        max_length: Optional[int] = None,
+        filter_urls: Optional[bool] = None,
     ) -> str:
         """Cleans and sanitizes raw input text for natural speech synthesis."""
         if not text:
             return ""
+
+        limit = int(self.config.max_text_length if max_length is None else max_length)
+        should_filter_urls = bool(self.config.filter_urls if filter_urls is None else filter_urls)
 
         # Replace channel mentions <#123> and user mentions <@123>
         text = re.sub(r"<@!?(\d+)>", "user", text)
@@ -50,50 +46,55 @@ class TTSEngine:
         text = re.sub(r"<a?:(\w+):\d+>", r"\1", text)
 
         # Remove URLs completely to avoid reading links or saying 'link'
-        if filter_urls:
+        if should_filter_urls:
             text = re.sub(r"<?(?:https?://\S+|www\.\S+)>?", "", text)
 
         # Collapse excessive whitespace
         text = re.sub(r"\s+", " ", text).strip()
 
         # If only isolated punctuation remains after URL removal, clear it
-        if filter_urls and not any(c.isalnum() for c in text):
+        if should_filter_urls and not any(c.isalnum() for c in text):
             return ""
 
         # Enforce maximum text length
-        if len(text) > max_length:
-            text = text[:max_length].rstrip() + "..."
+        if len(text) > limit:
+            text = text[:limit].rstrip() + "..."
 
         return text
 
     async def synthesize(
         self,
         text: str,
-        voice: str = DEFAULT_VOICE,
-        rate: str = DEFAULT_RATE,
-        pitch: str = DEFAULT_PITCH,
-        volume: str = DEFAULT_SYNTH_VOLUME,
+        voice: Optional[str] = None,
+        rate: Optional[str] = None,
+        pitch: Optional[str] = None,
+        volume: Optional[str] = None,
     ) -> Path:
         """Synthesizes text into an MP3 audio file and returns its path."""
         if not text.strip():
             raise ValueError("Input text for synthesis cannot be empty.")
+
+        selected_voice = voice or self.config.voice
+        selected_rate = rate or self.config.rate
+        selected_pitch = pitch or self.config.pitch
+        selected_volume = volume or self.config.synth_volume
 
         output_filename = f"tts_{uuid.uuid4().hex}.mp3"
         output_path = self.temp_dir / output_filename
 
         communicate = edge_tts.Communicate(
             text=text,
-            voice=voice,
-            rate=rate,
-            pitch=pitch,
-            volume=volume,
+            voice=selected_voice,
+            rate=selected_rate,
+            pitch=selected_pitch,
+            volume=selected_volume,
         )
 
         try:
             await communicate.save(str(output_path))
             return output_path
         except Exception as e:
-            logger.error("Error during speech synthesis (voice: %s): %s", voice, e)
+            logger.error("Error during speech synthesis (voice: %s): %s", selected_voice, e)
             if output_path.exists():
                 output_path.unlink(missing_ok=True)
             raise
@@ -102,56 +103,26 @@ class TTSEngine:
         self,
         speech_path: Path,
         intro_path: Path,
-        delay_seconds: float = DEFAULT_DELAY_SECONDS,
-        ffmpeg_path: str = DEFAULT_FFMPEG_PATH,
+        delay_seconds: float,
     ) -> Path:
-        """Mixes intro sound with speech so speech starts playing after delay_seconds."""
-        if not intro_path.exists():
-            return speech_path
-
-        delay_ms = max(0, int(delay_seconds * 1000))
+        """Mixes intro sound with speech using core.ffmpeg.mix_audio_with_intro."""
         mixed_filename = f"tts_mixed_{uuid.uuid4().hex}.mp3"
         mixed_path = self.temp_dir / mixed_filename
 
-        filter_complex = (
-            f"[0:a]aresample=48000,aformat=sample_fmts=s16:channel_layouts=stereo,volume=0.85[a0];"
-            f"[1:a]aresample=48000,aformat=sample_fmts=s16:channel_layouts=stereo,volume=0.95,adelay={delay_ms}|{delay_ms}[a1];"
-            f"[a0][a1]amix=inputs=2:duration=longest:normalize=0,alimiter=limit=0.95[out]"
+        return await mix_audio_with_intro(
+            speech_path=speech_path,
+            intro_path=intro_path,
+            output_path=mixed_path,
+            delay_seconds=delay_seconds,
+            sample_rate=int(self.config.sample_rate),
+            intro_volume=float(self.config.mix_intro_volume),
+            speech_volume=float(self.config.mix_speech_volume),
+            limiter_limit=float(self.config.mix_limiter_limit),
         )
-        cmd = [
-            ffmpeg_path,
-            "-y",
-            "-i", str(intro_path),
-            "-i", str(speech_path),
-            "-filter_complex", filter_complex,
-            "-map", "[out]",
-            "-ar", "48000",
-            "-ac", "2",
-            "-loglevel", "error",
-            str(mixed_path),
-        ]
 
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            _, stderr = await proc.communicate()
-
-            if proc.returncode != 0:
-                logger.error("FFmpeg mixing failed: %s", stderr.decode("utf-8", errors="replace"))
-                return speech_path
-
-            # Remove original unmixed speech file
-            speech_path.unlink(missing_ok=True)
-            return mixed_path
-        except Exception as e:
-            logger.error("Exception during audio mixing: %s", e)
-            return speech_path
-
-    async def get_available_voices(self, filter_prefix: Optional[str] = "pt-") -> List[Dict[str, str]]:
-        """Returns a list of available Edge-TTS voices filtered by locale prefix (e.g., 'pt-')."""
+    async def get_available_voices(self, filter_prefix: Optional[str] = None) -> List[Dict[str, str]]:
+        """Returns a list of available Edge-TTS voices filtered by locale prefix."""
+        prefix = self.config.default_locale_filter if filter_prefix is None else filter_prefix
         if self._voices_cache is None:
             try:
                 raw_voices = await edge_tts.list_voices()
@@ -163,7 +134,7 @@ class TTSEngine:
         results = []
         for v in self._voices_cache:
             short_name = v.get("ShortName", "")
-            if not filter_prefix or short_name.lower().startswith(filter_prefix.lower()):
+            if not prefix or short_name.lower().startswith(prefix.lower()):
                 results.append({
                     "name": short_name,
                     "gender": v.get("Gender", "Unknown"),
@@ -171,4 +142,3 @@ class TTSEngine:
                     "friendly_name": v.get("FriendlyName", short_name),
                 })
         return results
-

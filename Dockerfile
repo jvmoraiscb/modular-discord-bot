@@ -21,10 +21,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Create runtime directories
-RUN mkdir -p /app/data /app/assets /app/config
+RUN mkdir -p /app/data /app/config
 
 # Copy application source code
-COPY assets/ /app/assets/
 COPY config/ /app/config/
 COPY core/ /app/core/
 COPY services/ /app/services/

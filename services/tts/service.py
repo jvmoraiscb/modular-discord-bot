@@ -1,61 +1,40 @@
+"""Modular Text-to-Speech (TTS) service using Edge-TTS neural voices and sound cues."""
 from __future__ import annotations
+
 import asyncio
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import Any, ClassVar, Dict, List, Optional, TYPE_CHECKING, Type, Union
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 
 from core.service_base import BaseService
-from services.tts.tts_engine import TTSEngine
 from core.voice_queue import AudioTrack, GuildAudioPlayer
+from services.tts.models import TTSConfig, TTSGuildConfig
+from services.tts.tts_engine import TTSEngine
 
 if TYPE_CHECKING:
     from core.bot import ModularBot
 
 logger = logging.getLogger("bot.service.tts")
 
-from services.tts.defaults import (
-    DEFAULT_VOLUME,
-    DEFAULT_VOLUME_MIN,
-    DEFAULT_VOLUME_MAX,
-    DEFAULT_VOICE,
-    DEFAULT_VOICE_SPEED,
-    DEFAULT_VOICE_SPEED_MIN,
-    DEFAULT_VOICE_SPEED_MAX,
-    DEFAULT_INTRO_SOUND,
-    DEFAULT_INTRO_DELAY,
-    DEFAULT_INTRO_DELAY_MIN,
-    DEFAULT_INTRO_DELAY_MAX,
-    DEFAULT_MAX_TEXT_LENGTH,
-    DEFAULT_MAX_TEXT_LENGTH_MIN,
-    DEFAULT_MAX_TEXT_LENGTH_MAX,
-    DEFAULT_SOUNDS_DIR,
-    DEFAULT_FFMPEG_PATH,
-    DEFAULT_FILTER_URLS,
-    DEFAULT_VOICE_CONNECT_TIMEOUT,
-    DEFAULT_VOLUME_FLOAT_FALLBACK,
-    MIN_VOLUME_FLOAT,
-    MAX_VOLUME_FLOAT,
-    MAX_AUTOCOMPLETE_CHOICES,
-    MAX_TITLE_PREVIEW_LENGTH,
-    DEFAULT_PREFIX,
-    POPULAR_VOICES,
-    SPEED_CHOICES,
-    DELAY_CHOICES,
-)
 
-
-class TTSService(BaseService):
+class TTSService(BaseService[TTSConfig, TTSGuildConfig]):
     """Modular Text-to-Speech (TTS) service using Edge-TTS neural voices and sound cues."""
 
     name: str = "tts"
+    config_class: ClassVar[Type[TTSConfig]] = TTSConfig
+    guild_config_class: ClassVar[Type[TTSGuildConfig]] = TTSGuildConfig
 
-    def __init__(self, bot: ModularBot, config: Optional[dict] = None) -> None:
+    def __init__(
+        self,
+        bot: ModularBot,
+        config: Optional[Union[TTSConfig, Dict[str, Any]]] = None,
+    ) -> None:
         super().__init__(bot, config)
-        self.engine = TTSEngine()
+        self.engine = TTSEngine(config=self.config)
         self._connect_locks: Dict[int, asyncio.Lock] = {}
 
     def _get_connect_lock(self, guild_id: int) -> asyncio.Lock:
@@ -85,15 +64,17 @@ class TTSService(BaseService):
                             )
                     return vc
                 else:
-                    # Stale or disconnected client; clean up safely without interrupting active gateway
                     try:
                         await vc.disconnect(force=True)
                     except Exception:
                         pass
-                    await asyncio.sleep(0.2)
+                    await asyncio.sleep(float(self.config.disconnect_cleanup_delay))
 
             try:
-                return await target_channel.connect(reconnect=True, timeout=DEFAULT_VOICE_CONNECT_TIMEOUT)
+                return await target_channel.connect(
+                    reconnect=True,
+                    timeout=float(self.config.voice_connect_timeout),
+                )
             except discord.ClientException:
                 vc = guild.voice_client
                 if vc and vc.is_connected() and vc.channel and vc.channel.id != target_channel.id:
@@ -116,52 +97,50 @@ class TTSService(BaseService):
         return self.bot.get_audio_player(guild.id)
 
     def get_service_volume(self, guild_id: Optional[int]) -> float:
-        """Returns the configured TTS playback volume as float (0.0 - 2.0)."""
-        raw_vol = self.get_guild_setting(guild_id, "volume", DEFAULT_VOLUME)
+        """Returns the configured TTS playback volume as float."""
+        raw_vol = self.get_guild_setting(guild_id, "volume", self.config.volume)
         try:
             vol = float(raw_vol)
-            if vol > MAX_VOLUME_FLOAT:
+            max_float = float(self.config.volume_float_max)
+            min_float = float(self.config.volume_float_min)
+            if vol > max_float:
                 vol = vol / 100.0
-            return max(MIN_VOLUME_FLOAT, min(vol, MAX_VOLUME_FLOAT))
+            return max(min_float, min(vol, max_float))
         except (ValueError, TypeError):
-            return DEFAULT_VOLUME_FLOAT_FALLBACK
-
-    async def on_service_unload(self) -> None:
-        """Cleans up service upon unloading."""
-        pass
+            return float(self.config.volume_float_fallback)
 
     def get_guild_speed(self, guild_id: Optional[int]) -> float:
-        """Returns the configured speed multiplier for a guild (default 1.0)."""
-        val = self.get_guild_setting(guild_id, "voice_speed", DEFAULT_VOICE_SPEED)
+        """Returns the configured speed multiplier for a guild."""
+        val = self.get_guild_setting(guild_id, "voice_speed", float(self.config.voice_speed))
         try:
             return round(float(val), 1)
         except (ValueError, TypeError):
-            return DEFAULT_VOICE_SPEED
+            return float(self.config.voice_speed)
 
     def get_guild_intro_delay(self, guild_id: Optional[int]) -> float:
         """Returns the configured delay in seconds before speech starts over the intro sound."""
-        val = self.get_guild_setting(guild_id, "intro_delay", DEFAULT_INTRO_DELAY)
+        val = self.get_guild_setting(guild_id, "intro_delay", float(self.config.intro_delay))
         try:
             return round(float(val), 2)
         except (ValueError, TypeError):
-            return round(float(DEFAULT_INTRO_DELAY), 2)
+            return round(float(self.config.intro_delay), 2)
 
     def _speed_to_rate(self, speed: float) -> str:
         """Converts speed multiplier (e.g. 1.0, 1.2, 0.8) to Edge-TTS rate string (+0%, +20%, -20%)."""
-        percentage = round((speed - DEFAULT_VOICE_SPEED) * 100)
+        percentage = round((speed - float(self.config.voice_speed)) * 100)
         sign = "+" if percentage >= 0 else ""
         return f"{sign}{percentage}%"
 
     def get_available_sounds(self) -> List[str]:
         """Scans the audio sounds directory and returns a sorted list of audio filenames."""
-        sounds_dir_str = self.config.get("sounds_dir", DEFAULT_SOUNDS_DIR)
-        sounds_dir = Path(sounds_dir_str)
+        sounds_dir = Path(self.config.sounds_dir)
         if not sounds_dir.exists():
             return []
+        supported_exts = {ext.lower() for ext in self.config.supported_extensions}
         files = [
             f.name
             for f in sounds_dir.iterdir()
-            if f.is_file() and f.suffix.lower() in (".mp3", ".wav", ".ogg", ".opus")
+            if f.is_file() and f.suffix.lower() in supported_exts
         ]
         return sorted(files)
 
@@ -197,49 +176,44 @@ class TTSService(BaseService):
             return None
         return vc
 
-    # Autocomplete handler for popular voice names
     async def _voice_autocomplete(
         self, interaction: discord.Interaction, current: str
     ) -> List[app_commands.Choice[str]]:
         choices = []
-        for label, val in POPULAR_VOICES:
+        for label, val in self.config.popular_voices:
             if current.lower() in label.lower() or current.lower() in val.lower():
                 choices.append(app_commands.Choice(name=label, value=val))
-        return choices[:MAX_AUTOCOMPLETE_CHOICES]
+        return choices[: int(self.config.max_autocomplete_choices)]
 
-    # Autocomplete handler for speed multipliers
     async def _speed_autocomplete(
         self, interaction: discord.Interaction, current: str
     ) -> List[app_commands.Choice[str]]:
         choices = []
-        for label, val in SPEED_CHOICES:
+        for label, val in self.config.speed_choices:
             if current.lower() in label.lower() or current.lower() in val.lower():
                 choices.append(app_commands.Choice(name=label, value=val))
-        return choices[:MAX_AUTOCOMPLETE_CHOICES]
+        return choices[: int(self.config.max_autocomplete_choices)]
 
-    # Autocomplete handler for delay options
     async def _delay_autocomplete(
         self, interaction: discord.Interaction, current: str
     ) -> List[app_commands.Choice[str]]:
         choices = []
-        for label, val in DELAY_CHOICES:
+        for label, val in self.config.delay_choices:
             if current.lower() in label.lower() or current.lower() in val.lower():
                 choices.append(app_commands.Choice(name=label, value=val))
-        return choices[:MAX_AUTOCOMPLETE_CHOICES]
+        return choices[: int(self.config.max_autocomplete_choices)]
 
-    # Autocomplete handler for audio sound effects in assets/sounds/
     async def _sound_autocomplete(
         self, interaction: discord.Interaction, current: str
     ) -> List[app_commands.Choice[str]]:
-        choices = [app_commands.Choice(name="None (Disabled)", value=DEFAULT_INTRO_SOUND)]
+        choices = [app_commands.Choice(name="None (Disabled)", value=str(self.config.intro_sound))]
         sounds = self.get_available_sounds()
         for s in sounds:
             if current.lower() in s.lower():
                 clean_name = s.rsplit(".", 1)[0].replace("_", " ").title()
                 choices.append(app_commands.Choice(name=f"{clean_name} ({s})", value=s))
-        return choices[:MAX_AUTOCOMPLETE_CHOICES]
+        return choices[: int(self.config.max_autocomplete_choices)]
 
-    # --- SLASH COMMAND GROUP (/tts) ---
     tts_group = app_commands.Group(name="tts", description="Text-to-Speech service commands")
 
     async def _exec_speak(self, interaction: discord.Interaction, text: str):
@@ -249,19 +223,18 @@ class TTSService(BaseService):
             await interaction.response.send_message(
                 "This command can only be used inside a server.", ephemeral=True
             )
-        # Defer response first to allow voice connection and asynchronous audio synthesis
+            return
+
         await interaction.response.defer()
 
         vc = await self._connect_voice(interaction)
         if not vc:
             return
 
-        # Guild-specific or fallback default settings
-        max_len = int(self.get_guild_setting(guild.id, "max_text_length", DEFAULT_MAX_TEXT_LENGTH))
-        filter_urls = bool(self.config.get("filter_urls", DEFAULT_FILTER_URLS))
-        voice = str(self.get_guild_setting(guild.id, "voice", DEFAULT_VOICE))
+        max_len = int(self.get_guild_setting(guild.id, "max_text_length", self.config.max_text_length))
+        filter_urls = bool(self.config.filter_urls)
+        voice = str(self.get_guild_setting(guild.id, "voice", self.config.voice))
 
-        # Calculate rate string from 0.1x speed multiplier
         speed = self.get_guild_speed(guild.id)
         rate = self._speed_to_rate(speed)
 
@@ -281,33 +254,35 @@ class TTSService(BaseService):
             await interaction.followup.send(f"Error generating TTS audio: {e}")
             return
 
-        # Mix intro sound with speech if enabled
-        intro_sound = str(self.get_guild_setting(guild.id, "intro_sound", DEFAULT_INTRO_SOUND)).strip()
-        if intro_sound and intro_sound.lower() != DEFAULT_INTRO_SOUND:
-            sounds_dir_str = self.config.get("sounds_dir", DEFAULT_SOUNDS_DIR)
-            intro_path = Path(sounds_dir_str) / intro_sound
+        intro_sound = str(self.get_guild_setting(guild.id, "intro_sound", str(self.config.intro_sound))).strip()
+        if intro_sound and intro_sound.lower() != str(self.config.intro_sound):
+            intro_path = Path(self.config.sounds_dir) / intro_sound
             if intro_path.exists():
                 intro_delay = self.get_guild_intro_delay(guild.id)
-                ffmpeg_path = self.config.get("ffmpeg_path", self.bot.bot_config.get("ffmpeg_path", DEFAULT_FFMPEG_PATH))
                 audio_path = await self.engine.mix_with_intro(
                     speech_path=audio_path,
                     intro_path=intro_path,
                     delay_seconds=intro_delay,
-                    ffmpeg_path=ffmpeg_path,
                 )
 
         player = self.get_player(guild)
-        title_text = f"TTS: {cleaned_text[:MAX_TITLE_PREVIEW_LENGTH]}" if len(cleaned_text) > MAX_TITLE_PREVIEW_LENGTH else f"TTS: {cleaned_text}"
+        preview_len = int(self.config.max_title_preview_length)
+        title_text = (
+            f"TTS: {cleaned_text[:preview_len]}"
+            if len(cleaned_text) > preview_len
+            else f"TTS: {cleaned_text}"
+        )
         track = AudioTrack(
             title=title_text,
             source=audio_path,
             volume=self.get_service_volume(guild.id),
+            volume_min=float(self.config.volume_float_min),
+            volume_max=float(self.config.volume_float_max),
             service_name="tts",
             requester=interaction.user.display_name,
             channel=interaction.channel,
             text=cleaned_text,
             is_temporary=True,
-            options="-loglevel error",
         )
 
         pos = await player.add_track(track)
@@ -318,7 +293,6 @@ class TTSService(BaseService):
                 f"Added to speech queue (#{pos}): \"{cleaned_text}\""
             )
 
-    # --- /tts COMMAND GROUP ---
     @tts_group.command(name="speak", description="Speaks text in current voice channel.")
     async def cmd_tts_speak(self, interaction: discord.Interaction, text: str):
         await self._exec_speak(interaction, text)
@@ -333,7 +307,7 @@ class TTSService(BaseService):
             ("/tts speak <text>", "Synthesize and speak text in your voice channel"),
             ("/tts config", "View current server TTS configuration"),
             ("/tts set_voice <voice>", "Set default server voice (with autocomplete)"),
-            ("/tts set_voice_speed <speed>", "Set speech speed (0.5x to 3.0x)"),
+            ("/tts set_voice_speed <speed>", "Set speech speed (0.5x to 2.0x)"),
             ("/tts set_volume <volume>", "Set speech playback volume percentage (1-100)"),
             ("/tts set_max_text_length <length>", "Set maximum allowed text length for speech"),
             ("/tts set_intro <sound>", "Set intro sound cue before speech"),
@@ -371,19 +345,19 @@ class TTSService(BaseService):
             await interaction.response.send_message("Command only available in servers.", ephemeral=True)
             return
 
-        voice = str(self.get_guild_setting(guild.id, "voice", DEFAULT_VOICE))
+        voice = str(self.get_guild_setting(guild.id, "voice", str(self.config.voice)))
         speed = self.get_guild_speed(guild.id)
-        intro_sound = self.get_guild_setting(guild.id, "intro_sound", DEFAULT_INTRO_SOUND)
-        intro_display = f"`{intro_sound}`" if intro_sound and intro_sound != DEFAULT_INTRO_SOUND else "None (disabled)"
+        intro_sound = self.get_guild_setting(guild.id, "intro_sound", str(self.config.intro_sound))
+        intro_display = f"`{intro_sound}`" if intro_sound and intro_sound != str(self.config.intro_sound) else "None (disabled)"
         intro_delay = self.get_guild_intro_delay(guild.id)
         bound_ch_id = self.get_guild_setting(guild.id, "bound_channel_id")
         bound_ch_str = f"<#{bound_ch_id}>" if bound_ch_id else "None (uses `/tts speak` commands)"
-        max_len = int(self.get_guild_setting(guild.id, "max_text_length", DEFAULT_MAX_TEXT_LENGTH))
+        max_len = int(self.get_guild_setting(guild.id, "max_text_length", int(self.config.max_text_length)))
         vol_pct = int(self.get_service_volume(guild.id) * 100)
 
-        vol_min, vol_max = self.get_numeric_bounds("volume", DEFAULT_VOLUME_MIN, DEFAULT_VOLUME_MAX)
-        spd_min, spd_max = self.get_numeric_bounds("voice_speed", DEFAULT_VOICE_SPEED_MIN, DEFAULT_VOICE_SPEED_MAX)
-        len_min, len_max = self.get_numeric_bounds("max_text_length", DEFAULT_MAX_TEXT_LENGTH_MIN, DEFAULT_MAX_TEXT_LENGTH_MAX)
+        vol_min, vol_max = self.get_numeric_bounds("volume")
+        spd_min, spd_max = self.get_numeric_bounds("voice_speed")
+        len_min, len_max = self.get_numeric_bounds("max_text_length")
 
         embed = discord.Embed(
             title=f"TTS Configuration - {guild.name}",
@@ -426,7 +400,7 @@ class TTSService(BaseService):
             await interaction.response.send_message("Command only available in servers.", ephemeral=True)
             return
 
-        min_len, max_len = self.get_numeric_bounds("max_text_length", DEFAULT_MAX_TEXT_LENGTH_MIN, DEFAULT_MAX_TEXT_LENGTH_MAX)
+        min_len, max_len = self.get_numeric_bounds("max_text_length")
         if length < min_len or length > max_len:
             await interaction.response.send_message(
                 f"Max text length must be between {min_len} and {max_len} characters.",
@@ -475,7 +449,7 @@ class TTSService(BaseService):
             )
             return
 
-        min_spd, max_spd = self.get_numeric_bounds("voice_speed", DEFAULT_VOICE_SPEED_MIN, DEFAULT_VOICE_SPEED_MAX)
+        min_spd, max_spd = self.get_numeric_bounds("voice_speed")
         if speed_val < min_spd or speed_val > max_spd:
             await interaction.response.send_message(
                 f"Speed multiplier must be between `{min_spd:.1f}x` and `{max_spd:.1f}x` (with 0.1x steps).",
@@ -492,7 +466,7 @@ class TTSService(BaseService):
         name="set_intro",
         description="Sets a sound effect to play before each TTS message.",
     )
-    @app_commands.describe(sound="Select an audio sound effect from assets/sounds/ (or None)")
+    @app_commands.describe(sound="Select an audio sound effect from data/sounds/ (or None)")
     @app_commands.autocomplete(sound=_sound_autocomplete)
     @app_commands.default_permissions(manage_guild=True)
     async def cmd_tts_set_intro(self, interaction: discord.Interaction, sound: str):
@@ -502,14 +476,14 @@ class TTSService(BaseService):
 
         sound_clean = sound.strip()
         if sound_clean.lower() in ("none", "disabled", "off"):
-            await self.set_guild_setting(interaction.guild.id, "intro_sound", DEFAULT_INTRO_SOUND)
+            await self.set_guild_setting(interaction.guild.id, "intro_sound", str(self.config.intro_sound))
             await interaction.response.send_message("Intro sound effect disabled.")
             return
 
         available = self.get_available_sounds()
         if sound_clean not in available:
             await interaction.response.send_message(
-                f"Sound file `{sound_clean}` was not found in `{DEFAULT_SOUNDS_DIR}/`. Use the autocomplete options.",
+                f"Sound file `{sound_clean}` was not found in `{self.config.sounds_dir}/`. Use the autocomplete options.",
                 ephemeral=True,
             )
             return
@@ -544,7 +518,7 @@ class TTSService(BaseService):
             )
             return
 
-        min_delay, max_delay = self.get_numeric_bounds("intro_delay", DEFAULT_INTRO_DELAY_MIN, DEFAULT_INTRO_DELAY_MAX)
+        min_delay, max_delay = self.get_numeric_bounds("intro_delay")
         if delay_val < min_delay or delay_val > max_delay:
             await interaction.response.send_message(
                 f"Delay must be between `{min_delay:.1f}s` and `{max_delay:.1f}s`.",
@@ -557,8 +531,6 @@ class TTSService(BaseService):
             f"Intro sound delay set to: `{delay_val:.1f}s`!\n"
             f"Speech will now begin {delay_val:.1f}s after the intro sound starts."
         )
-
-
 
     @tts_group.command(
         name="set_channel",
@@ -596,7 +568,7 @@ class TTSService(BaseService):
             await interaction.response.send_message("Command only available in servers.", ephemeral=True)
             return
 
-        min_vol, max_vol = self.get_numeric_bounds("volume", DEFAULT_VOLUME_MIN, DEFAULT_VOLUME_MAX)
+        min_vol, max_vol = self.get_numeric_bounds("volume")
         if level < min_vol or level > max_vol:
             await interaction.response.send_message(
                 f"Volume must be between {min_vol} and {max_vol}.",
@@ -609,18 +581,23 @@ class TTSService(BaseService):
 
         player = self.get_player(guild)
         if player.current_track and player.current_track.service_name == "tts":
-            player.set_current_volume(vol_float)
+            player.set_current_volume(
+                vol_float,
+                volume_min=float(self.config.volume_float_min),
+                volume_max=float(self.config.volume_float_max),
+            )
 
         await interaction.response.send_message(f"TTS speech volume set to **{level}%**.")
 
-    # --- AUTO-READING (CHAT TO SPEECH) ---
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
         """Reads messages sent in configured bound channel when bot is connected to voice."""
-        if not message.guild or message.author.bot:
+        if not message.guild:
+            return
+        if message.author.bot and not self.config.read_bot_messages:
             return
 
-        prefix = self.bot.bot_config.get("prefix", DEFAULT_PREFIX)
+        prefix = self.bot.bot_config.prefix
         if message.content.startswith(prefix):
             return
 
@@ -628,11 +605,9 @@ class TTSService(BaseService):
         if not bound_channel_id or message.channel.id != bound_channel_id:
             return
 
-        # Do not read if the message contains files, attachments, or stickers
         if message.attachments or message.stickers:
             return
 
-        # Ensure bot is in the voice channel of the message author
         author = message.author
         if not isinstance(author, discord.Member):
             return
@@ -645,15 +620,13 @@ class TTSService(BaseService):
             if not vc:
                 return
         else:
-            # Author is not in a voice channel; only proceed if bot is already connected
             if not vc or not vc.is_connected():
                 return
 
-        max_len = int(self.get_guild_setting(message.guild.id, "max_text_length", DEFAULT_MAX_TEXT_LENGTH))
-        filter_urls = bool(self.config.get("filter_urls", DEFAULT_FILTER_URLS))
-        voice = str(self.get_guild_setting(message.guild.id, "voice", DEFAULT_VOICE))
+        max_len = int(self.get_guild_setting(message.guild.id, "max_text_length", self.config.max_text_length))
+        filter_urls = bool(self.config.filter_urls)
+        voice = str(self.get_guild_setting(message.guild.id, "voice", self.config.voice))
 
-        # Calculate rate string from 0.1x speed multiplier
         speed = self.get_guild_speed(message.guild.id)
         rate = self._speed_to_rate(speed)
 
@@ -669,33 +642,35 @@ class TTSService(BaseService):
                 rate=rate,
             )
 
-            # Mix intro sound with speech if enabled
-            intro_sound = str(self.get_guild_setting(message.guild.id, "intro_sound", DEFAULT_INTRO_SOUND)).strip()
-            if intro_sound and intro_sound.lower() != DEFAULT_INTRO_SOUND:
-                sounds_dir_str = self.config.get("sounds_dir", DEFAULT_SOUNDS_DIR)
-                intro_path = Path(sounds_dir_str) / intro_sound
+            intro_sound = str(self.get_guild_setting(message.guild.id, "intro_sound", str(self.config.intro_sound))).strip()
+            if intro_sound and intro_sound.lower() != str(self.config.intro_sound):
+                intro_path = Path(self.config.sounds_dir) / intro_sound
                 if intro_path.exists():
                     intro_delay = self.get_guild_intro_delay(message.guild.id)
-                    ffmpeg_path = self.config.get("ffmpeg_path", self.bot.bot_config.get("ffmpeg_path", DEFAULT_FFMPEG_PATH))
                     audio_path = await self.engine.mix_with_intro(
                         speech_path=audio_path,
                         intro_path=intro_path,
                         delay_seconds=intro_delay,
-                        ffmpeg_path=ffmpeg_path,
                     )
 
             player = self.get_player(message.guild)
-            title_text = f"TTS: {cleaned[:MAX_TITLE_PREVIEW_LENGTH]}" if len(cleaned) > MAX_TITLE_PREVIEW_LENGTH else f"TTS: {cleaned}"
+            preview_len = int(self.config.max_title_preview_length)
+            title_text = (
+                f"TTS: {cleaned[:preview_len]}"
+                if len(cleaned) > preview_len
+                else f"TTS: {cleaned}"
+            )
             track = AudioTrack(
                 title=title_text,
                 source=audio_path,
                 volume=self.get_service_volume(message.guild.id),
+                volume_min=float(self.config.volume_float_min),
+                volume_max=float(self.config.volume_float_max),
                 service_name="tts",
                 requester=message.author.display_name,
                 channel=message.channel,
                 text=cleaned,
                 is_temporary=True,
-                options="-loglevel error",
             )
             await player.add_track(track)
         except Exception as e:

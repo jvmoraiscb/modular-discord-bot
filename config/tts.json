@@ -1,15 +1,193 @@
 {
   "enabled": true,
+  "volume": 100,
   "volume_min": 1,
   "volume_max": 100,
-  "voice_speed_min": 0.25,
+  "volume_float_min": 0.0,
+  "volume_float_max": 2.0,
+  "volume_float_fallback": 1.0,
+  "voice": "pt-BR-FranciscaNeural",
+  "voice_speed": 1.0,
+  "voice_speed_min": 0.5,
   "voice_speed_max": 2.0,
+  "intro_sound": "none",
+  "intro_delay": 1.0,
   "intro_delay_min": 0.0,
   "intro_delay_max": 5.0,
+  "max_text_length": 500,
   "max_text_length_min": 10,
   "max_text_length_max": 2000,
-  "sounds_dir": "assets/sounds",
+  "sounds_dir": "data/sounds",
   "filter_urls": true,
   "read_bot_messages": false,
-  "ffmpeg_path": "ffmpeg"
+  "voice_connect_timeout": 15.0,
+  "temp_dir": "data/temp",
+  "rate": "+0%",
+  "pitch": "+0Hz",
+  "synth_volume": "+0%",
+  "delay_seconds": 0.5,
+  "sample_rate": 48000,
+  "max_autocomplete_choices": 25,
+  "max_title_preview_length": 40,
+  "disconnect_cleanup_delay": 0.2,
+  "default_locale_filter": "pt-",
+  "supported_extensions": [
+    ".mp3",
+    ".wav",
+    ".ogg",
+    ".opus"
+  ],
+  "mix_intro_volume": 0.85,
+  "mix_speech_volume": 0.95,
+  "mix_limiter_limit": 0.95,
+  "popular_voices": [
+    [
+      "Jenny (en-US - Female)",
+      "en-US-JennyNeural"
+    ],
+    [
+      "Guy (en-US - Male)",
+      "en-US-GuyNeural"
+    ],
+    [
+      "Aria (en-US - Female)",
+      "en-US-AriaNeural"
+    ],
+    [
+      "Francisca (pt-BR - Female)",
+      "pt-BR-FranciscaNeural"
+    ],
+    [
+      "Antonio (pt-BR - Male)",
+      "pt-BR-AntonioNeural"
+    ],
+    [
+      "Thalita (pt-BR - Multilingual)",
+      "pt-BR-ThalitaMultilingualNeural"
+    ],
+    [
+      "Raquel (pt-PT - Female)",
+      "pt-PT-RaquelNeural"
+    ],
+    [
+      "Duarte (pt-PT - Male)",
+      "pt-PT-DuarteNeural"
+    ]
+  ],
+  "speed_choices": [
+    [
+      "0.5x (Slowest)",
+      "0.5x"
+    ],
+    [
+      "0.6x",
+      "0.6x"
+    ],
+    [
+      "0.7x",
+      "0.7x"
+    ],
+    [
+      "0.8x (Slower)",
+      "0.8x"
+    ],
+    [
+      "0.9x",
+      "0.9x"
+    ],
+    [
+      "1.0x (Normal / Default)",
+      "1.0x"
+    ],
+    [
+      "1.1x",
+      "1.1x"
+    ],
+    [
+      "1.2x (Faster)",
+      "1.2x"
+    ],
+    [
+      "1.3x",
+      "1.3x"
+    ],
+    [
+      "1.4x",
+      "1.4x"
+    ],
+    [
+      "1.5x (Fast)",
+      "1.5x"
+    ],
+    [
+      "1.6x",
+      "1.6x"
+    ],
+    [
+      "1.7x",
+      "1.7x"
+    ],
+    [
+      "1.8x",
+      "1.8x"
+    ],
+    [
+      "1.9x",
+      "1.9x"
+    ],
+    [
+      "2.0x (Very Fast)",
+      "2.0x"
+    ]
+  ],
+  "delay_choices": [
+    [
+      "0.0s (Simultaneous)",
+      "0.0s"
+    ],
+    [
+      "0.2s",
+      "0.2s"
+    ],
+    [
+      "0.3s",
+      "0.3s"
+    ],
+    [
+      "0.4s",
+      "0.4s"
+    ],
+    [
+      "0.5s",
+      "0.5s"
+    ],
+    [
+      "0.6s",
+      "0.6s"
+    ],
+    [
+      "0.7s",
+      "0.7s"
+    ],
+    [
+      "0.8s",
+      "0.8s"
+    ],
+    [
+      "1.0s (Default)",
+      "1.0s"
+    ],
+    [
+      "1.2s",
+      "1.2s"
+    ],
+    [
+      "1.5s",
+      "1.5s"
+    ],
+    [
+      "2.0s",
+      "2.0s"
+    ]
+  ]
 }

@@ -1,6 +1,11 @@
 services:
   discord-bot:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+      platforms:
+        - "linux/amd64"
+        - "linux/arm64"
     container_name: modular-discord-bot
     restart: unless-stopped
     env_file:

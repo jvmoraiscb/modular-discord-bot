@@ -1,42 +1,34 @@
+"""Core ModularBot implementation for Discord."""
 from __future__ import annotations
-import json
+
 import logging
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 
+from core.config import BotConfig
+from core.ffmpeg import configure_ffmpeg
 from core.guild_store import GuildStore
 from core.service_manager import ServiceManager
-from core.voice_queue import AudioTrack, GuildAudioPlayer
+from core.voice_queue import GuildAudioPlayer
 
 logger = logging.getLogger("bot.core")
-
-from core.defaults import (
-    DEFAULT_CONFIG_PATH,
-    DEFAULT_PREFIX,
-    DEFAULT_DESCRIPTION,
-    DEFAULT_FFMPEG_PATH,
-    DEFAULT_AUTO_DISCONNECT_TIMEOUT,
-    DEFAULT_TIMEOUT_MIN,
-    DEFAULT_TIMEOUT_MAX,
-    DEFAULT_SYNC_COMMANDS,
-    DEFAULT_STATUS_MESSAGE,
-    DEFAULT_VOICE_CONNECT_TIMEOUT,
-    MAX_QUEUE_DISPLAY,
-    MAX_AUTOCOMPLETE_CHOICES,
-    TIMEOUT_CHOICES,
-    get_default_config,
-)
 
 
 class ModularBot(commands.Bot):
     """Modular Discord bot supporting independent pluggable services."""
 
-    def __init__(self, config_path: str = DEFAULT_CONFIG_PATH) -> None:
-        self.bot_config = self._load_config(config_path)
+    def __init__(self, config_path: str = "config/bot.json") -> None:
+        self.bot_config: BotConfig = BotConfig.from_json_file(config_path)
+
+        configure_ffmpeg(
+            executable=self.bot_config.ffmpeg_path,
+            stream_before_options=self.bot_config.stream_before_options,
+            stream_options=self.bot_config.stream_options,
+            local_file_options=self.bot_config.local_file_options,
+        )
 
         # Intents configuration
         intents = discord.Intents.default()
@@ -44,72 +36,58 @@ class ModularBot(commands.Bot):
         intents.voice_states = True
         intents.guilds = True
 
-        prefix = self.bot_config.get("prefix", DEFAULT_PREFIX)
-        description = self.bot_config.get("description", DEFAULT_DESCRIPTION)
-
         super().__init__(
-            command_prefix=commands.when_mentioned_or(prefix),
+            command_prefix=commands.when_mentioned_or(self.bot_config.prefix),
             intents=intents,
-            description=description,
+            description=self.bot_config.description,
             help_command=commands.DefaultHelpCommand(),
         )
 
-        # Core components
-        self.guild_store = GuildStore()
-        self.service_manager = ServiceManager(self)
+        # Core components initialized from BotConfig
+        self.guild_store = GuildStore(
+            db_path=self.bot_config.db_path,
+            timeout=self.bot_config.db_timeout,
+        )
+        self.service_manager = ServiceManager(
+            self,
+            services_dir=self.bot_config.services_dir,
+            config_dir=self.bot_config.config_dir,
+        )
         self.audio_players: Dict[int, GuildAudioPlayer] = {}
 
     def get_audio_player(self, guild_id: int) -> GuildAudioPlayer:
         """Retrieves or creates the centralized audio player for a guild."""
         if guild_id not in self.audio_players:
-            ffmpeg_path = self.bot_config.get("ffmpeg_path", DEFAULT_FFMPEG_PATH)
             self.audio_players[guild_id] = GuildAudioPlayer(
                 guild_id=guild_id,
                 bot=self,
-                ffmpeg_path=ffmpeg_path,
             )
         return self.audio_players[guild_id]
 
-    def _load_config(self, config_path: str) -> Dict[str, Any]:
-        """Loads root bot configuration."""
-        path = Path(config_path)
-        if path.exists():
-            try:
-                with open(path, "r", encoding="utf-8") as f:
-                    return json.load(f)
-            except Exception as e:
-                logger.error("Error loading %s: %s", config_path, e)
-        return get_default_config()
-
     def get_guild_timeout(self, guild_id: Optional[int]) -> int:
         """Returns configured inactivity timeout in seconds (0 = never disconnect)."""
-        if guild_id is not None and hasattr(self, "guild_store"):
+        if guild_id is not None:
             custom_val = self.guild_store.get(guild_id, "bot", "auto_disconnect_timeout")
             if custom_val is not None:
                 try:
                     return max(0, int(custom_val))
                 except (ValueError, TypeError):
                     pass
-        return DEFAULT_AUTO_DISCONNECT_TIMEOUT
+        return int(self.bot_config.auto_disconnect_timeout)
 
     async def set_guild_timeout(self, guild_id: int, timeout: int) -> None:
         """Saves custom inactivity timeout in seconds for a guild."""
         val = max(0, int(timeout))
-        if hasattr(self, "guild_store"):
-            await self.guild_store.set(guild_id, "bot", "auto_disconnect_timeout", val)
-            if val == 0:
-                player = self.audio_players.get(guild_id)
-                if player:
-                    player._cancel_idle_timer()
+        await self.guild_store.set(guild_id, "bot", "auto_disconnect_timeout", val)
+        if val == 0:
+            player = self.audio_players.get(guild_id)
+            if player:
+                player._cancel_idle_timer()
 
-    def get_bot_numeric_bounds(self, key: str, default_min: int, default_max: int) -> tuple[int, int]:
+    def get_bot_numeric_bounds(self, key: str) -> tuple[int, int]:
         """Retrieves static (min, max) bounds defined directly in config/bot.json."""
-        min_val = self.bot_config.get(f"{key}_min", self.bot_config.get(f"min_{key}", default_min))
-        max_val = self.bot_config.get(f"{key}_max", self.bot_config.get(f"max_{key}", default_max))
-        try:
-            return int(min_val), int(max_val)
-        except (ValueError, TypeError):
-            return default_min, default_max
+        min_val, max_val = self.bot_config.get_numeric_bounds(key)
+        return int(min_val), int(max_val)
 
     async def setup_hook(self) -> None:
         """Asynchronous initialization hook before gateway login."""
@@ -120,7 +98,7 @@ class ModularBot(commands.Bot):
         self._register_core_commands()
 
         # Synchronize Slash Commands if enabled
-        if self.bot_config.get("sync_commands_on_startup", DEFAULT_SYNC_COMMANDS):
+        if self.bot_config.sync_commands_on_startup:
             try:
                 logger.info("Synchronizing application commands (Slash Commands)...")
                 synced = await self.tree.sync()
@@ -222,7 +200,8 @@ class ModularBot(commands.Bot):
                     return
 
             try:
-                await target_channel.connect(reconnect=True, timeout=DEFAULT_VOICE_CONNECT_TIMEOUT)
+                connect_timeout = float(self.bot_config.voice_connect_timeout)
+                await target_channel.connect(reconnect=True, timeout=connect_timeout)
                 await interaction.response.send_message(f"Connected to voice channel `{target_channel.name}`.")
             except Exception as e:
                 logger.error("Failed to connect to voice channel %s in guild %s: %s", target_channel.id, guild.id, e)
@@ -243,7 +222,6 @@ class ModularBot(commands.Bot):
                 await interaction.response.send_message("The bot is not connected to a voice channel.", ephemeral=True)
                 return
 
-            # Stop active playback and flush unified audio queue
             player = self.get_audio_player(guild.id)
             player.stop()
 
@@ -354,17 +332,18 @@ class ModularBot(commands.Bot):
                     inline=False,
                 )
 
+            max_queue = int(self.bot_config.max_queue_display)
             if queue_items:
                 queue_str = ""
-                for idx, item in enumerate(queue_items[:MAX_QUEUE_DISPLAY], start=1):
+                for idx, item in enumerate(queue_items[:max_queue], start=1):
                     item_title = f"[{item.title}]({item.webpage_url})" if item.webpage_url else f"**{item.title}**"
                     svc_tag = f"`[{item.service_name.upper()}]`" if item.service_name else "`[CORE]`"
                     duration = f" | `{item.formatted_duration}`" if item.duration and item.duration > 0 else ""
                     req = f" ({item.requester})" if item.requester else ""
                     queue_str += f"`{idx}.` {svc_tag} {item_title}{duration}{req}\n"
 
-                if len(queue_items) > MAX_QUEUE_DISPLAY:
-                    queue_str += f"\n*... and {len(queue_items) - MAX_QUEUE_DISPLAY} more track(s)*"
+                if len(queue_items) > max_queue:
+                    queue_str += f"\n*... and {len(queue_items) - max_queue} more track(s)*"
 
                 embed.add_field(
                     name=f"Up Next ({len(queue_items)} track(s))",
@@ -423,15 +402,16 @@ class ModularBot(commands.Bot):
 
             await interaction.response.send_message(embed=embed)
 
-        # Autocomplete for timeout command
         async def _timeout_autocomplete(
             interaction: discord.Interaction, current: str
         ) -> List[app_commands.Choice[int]]:
             choices = []
-            for label, val in TIMEOUT_CHOICES:
+            for item in self.bot_config.timeout_choices:
+                label, val = item[0], item[1]
                 if current.lower() in label.lower() or current in str(val):
                     choices.append(app_commands.Choice(name=label, value=val))
-            return choices[:MAX_AUTOCOMPLETE_CHOICES]
+            max_choices = int(self.bot_config.max_autocomplete_choices)
+            return choices[:max_choices]
 
         @bot_group.command(
             name="set_auto_disconnect_timeout",
@@ -455,9 +435,7 @@ class ModularBot(commands.Bot):
                 await interaction.response.send_message(msg, ephemeral=True)
                 return
 
-            min_timeout, max_timeout = self.get_bot_numeric_bounds(
-                "auto_disconnect_timeout", DEFAULT_TIMEOUT_MIN, DEFAULT_TIMEOUT_MAX
-            )
+            min_timeout, max_timeout = self.get_bot_numeric_bounds("auto_disconnect_timeout")
             if seconds < min_timeout or seconds > max_timeout:
                 await interaction.response.send_message(
                     f"Timeout must be between {min_timeout} and {max_timeout} seconds (0 = never disconnect).",
@@ -485,12 +463,10 @@ class ModularBot(commands.Bot):
 
             current_timeout = self.get_guild_timeout(guild.id)
             timeout_str = "Never (disabled)" if current_timeout == 0 else f"{current_timeout}s ({current_timeout // 60}m)"
-            prefix = self.bot_config.get("prefix", DEFAULT_PREFIX)
-            status_msg = self.bot_config.get("status_message", DEFAULT_STATUS_MESSAGE)
-            sync_startup = "Enabled" if self.bot_config.get("sync_commands_on_startup", DEFAULT_SYNC_COMMANDS) else "Disabled"
-            min_timeout, max_timeout = self.get_bot_numeric_bounds(
-                "auto_disconnect_timeout", DEFAULT_TIMEOUT_MIN, DEFAULT_TIMEOUT_MAX
-            )
+            prefix = self.bot_config.prefix
+            status_msg = self.bot_config.status_message
+            sync_startup = "Enabled" if self.bot_config.sync_commands_on_startup else "Disabled"
+            min_timeout, max_timeout = self.get_bot_numeric_bounds("auto_disconnect_timeout")
 
             embed = discord.Embed(
                 title=f"Bot Configuration - {guild.name}",
@@ -503,7 +479,6 @@ class ModularBot(commands.Bot):
             embed.add_field(name="Startup Sync", value=f"`{sync_startup}`", inline=True)
             embed.add_field(name="Activity Status", value=f"`{status_msg}`", inline=False)
 
-            # Service statuses
             discovered = self.service_manager.discover_services()
             if discovered:
                 service_lines = []
@@ -513,7 +488,9 @@ class ModularBot(commands.Bot):
                     is_enabled = cfg.get("enabled", True)
                     status_badge = "[ACTIVE]" if is_loaded else ("[ENABLED]" if is_enabled else "[DISABLED]")
                     status_desc = "Active" if is_loaded else ("Enabled (not loaded)" if is_enabled else "Disabled in config")
-                    service_lines.append(f"• `{status_badge}` **{s_name.upper()}**: {status_desc} (`config/{s_name}.json`)")
+                    service_lines.append(
+                        f"• `{status_badge}` **{s_name.upper()}**: {status_desc} (`{self.bot_config.config_dir}/{s_name}.json`)"
+                    )
                 embed.add_field(name="Modular Services", value="\n".join(service_lines), inline=False)
             else:
                 embed.add_field(name="Modular Services", value="*No services discovered in services/*", inline=False)
@@ -536,7 +513,6 @@ class ModularBot(commands.Bot):
 
         self.tree.add_command(bot_group)
 
-        # Traditional prefix command for instant guild synchronization (!sync)
         @self.command(name="sync")
         @commands.has_permissions(administrator=True)
         async def sync_commands_command(ctx: commands.Context):
@@ -547,11 +523,8 @@ class ModularBot(commands.Bot):
 
             status_msg = await ctx.send("Synchronizing global commands and clearing guild duplicates...")
             try:
-                # Clear guild-specific commands to prevent duplicate commands in autocomplete
                 self.tree.clear_commands(guild=ctx.guild)
                 await self.tree.sync(guild=ctx.guild)
-
-                # Synchronize globally
                 synced = await self.tree.sync()
                 await status_msg.edit(
                     content=f"{len(synced)} slash commands synchronized globally without duplicates! (Press Ctrl+R in Discord to refresh your UI cache)"
@@ -560,12 +533,11 @@ class ModularBot(commands.Bot):
                 await status_msg.edit(content=f"Error syncing commands: {e}")
 
     async def on_ready(self) -> None:
-        status_msg = self.bot_config.get("status_message", DEFAULT_STATUS_MESSAGE)
+        status_msg = self.bot_config.status_message
         await self.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name=status_msg))
         logger.info("Bot connected as %s (ID: %s)", self.user, self.user.id if self.user else "N/A")
         logger.info("Connected to %d guild(s)", len(self.guilds))
 
-        # Clear any guild-scoped commands to prevent Discord from showing duplicate global + guild commands in autocomplete
         for guild in self.guilds:
             try:
                 self.tree.clear_commands(guild=guild)
@@ -573,4 +545,3 @@ class ModularBot(commands.Bot):
                 logger.info("Cleaned guild-specific commands for %s (%s) to prevent autocomplete duplicates.", guild.name, guild.id)
             except Exception as e:
                 logger.error("Failed to clean guild commands for %s: %s", guild.id, e)
-

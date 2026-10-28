@@ -10,6 +10,7 @@ Modular Discord Bot built with an independent, service-oriented architecture. Ea
 discord-bot/
 ├── core/
 │   ├── bot.py               # ModularBot class (lifecycle and slash command synchronization)
+│   ├── ffmpeg.py            # Centralized FFmpeg audio sources, mixing, and stream management
 │   ├── voice_queue.py       # Unified guild audio queue and player (shared across all services)
 │   ├── service_base.py      # BaseService abstract class for modular services
 │   ├── service_manager.py   # Automatic service discovery, loading, and hot reloading
@@ -22,8 +23,10 @@ discord-bot/
 │   ├── guild_settings.json  # Dynamic per-guild settings
 │   ├── bot.log              # Persistent bot logs
 │   └── temp/                # Synthesized temporary audio files (auto-cleaned)
-├── assets/
-│   └── sounds/              # Intro audio sound effects for TTS
+├── data/
+│   ├── sounds/              # Soundboard & TTS intro audio files
+│   ├── temp/                # Ephemeral TTS speech synthesis files
+│   └── guild_settings.db    # Dynamic per-guild SQLite database
 ├── services/
 │   ├── tts/                 # Text-to-Speech service module
 │   │   ├── service.py       # Slash commands (/tts) and chat-to-speech listener
@@ -49,11 +52,13 @@ discord-bot/
 1. **Global Service Configuration (`config/<service>.json`)**:
    Each service has its own JSON file defining global settings (enabled state, validation bounds `_min`/`_max`, binary paths, sound directories).
 2. **Dynamic Per-Guild Overrides (`data/guild_settings.db`)**:
-   Individual servers can customize their preferences (voice, rate, intro sounds, volume) via slash commands. Overrides are stored in dedicated SQLite tables (`bot_config`, `tts_config`, `yt_config`).
+   Individual servers can customize their preferences (voice, rate, intro sounds, volume) via slash commands. Overrides are stored in dedicated SQLite tables (`bot_config`, `tts_config`, `yt_config`, `sounds_config`).
 3. **Auto Discovery & Pluggability**:
    Any new folder created inside `services/` containing a `service.py` subclassing `BaseService` is discovered and loaded automatically by `ServiceManager`.
 4. **Unified Core Audio Queue (`core/voice_queue.py`)**:
-   All audio-producing services (`tts`, `yt`, etc.) feed into a single unified guild queue managed by the core. Each service enqueues audio with its desired playback volume defined in its service defaults or per-guild settings, preventing audio conflicts and duplicate disconnect timers.
+   All audio-producing services (`tts`, `yt`, `sounds`) feed into a single unified guild queue managed by the core. Each service enqueues audio with its desired playback volume defined in its service configuration (`config/<service>.json`) or per-guild settings, preventing audio conflicts and duplicate disconnect timers.
+5. **Centralized FFmpeg Core (`core/ffmpeg.py`)**:
+   All audio source instantiation (`discord.FFmpegPCMAudio`, `discord.PCMVolumeTransformer`), stream reconnect parameters, volume clamping, and complex audio filter mixing (e.g., intro sound overlays with speech) are centralized in `core.ffmpeg`. Services delegate all audio processing to core functions rather than managing FFmpeg processes directly.
 
 ---
 
@@ -164,7 +169,7 @@ All TTS functionality and configuration commands are strictly organized under th
 | `/tts set_voice_speed <speed>` | Adjusts speech speed in 0.1x increments (e.g., `1.0x`, `1.2x`, `0.8x`) | Manage Server |
 | `/tts set_volume <volume>` | Sets default speech playback volume percentage for this server (1-100) | Manage Server |
 | `/tts set_max_text_length <length>` | Sets maximum allowed text length for speech synthesis | Manage Server |
-| `/tts set_intro <sound>` | Sets sound cue played before messages from `assets/sounds/` (with autocomplete) | Manage Server |
+| `/tts set_intro <sound>` | Sets sound cue played before messages from `data/sounds/` (with autocomplete) | Manage Server |
 | `/tts set_intro_delay <delay>` | Sets delay before speech begins over intro sound (e.g., `1.0s`, `0.5s`) | Manage Server |
 | `/tts set_channel [channel]` | Sets a text channel to be automatically read aloud in voice (leave empty to disable) | Manage Server |
 | `/tts help` | Displays available commands and usage guide for the Text-to-Speech service | Everyone |
@@ -178,6 +183,21 @@ All YouTube streaming commands are strictly organized under the `/yt` command gr
 | Command | Description | Permission |
 |---|---|---|
 | `/yt play <query>` | Plays audio from a YouTube URL or searches YouTube keywords | Everyone |
+| `/yt download <query> [audio_only]` | Downloads a YouTube video (MP4) or audio (MP3) directly to your computer | Everyone |
 | `/yt config` | Shows current YouTube playback configuration for this server | Everyone |
 | `/yt set_volume <1-100>` | Adjusts playback volume percentage for the server | Everyone |
 | `/yt help` | Displays available commands and usage guide for the YouTube music service | Everyone |
+
+---
+
+## Soundboard Commands (/sounds)
+
+All soundboard effects and audio file management commands are organized under the `/sounds` command group:
+
+| Command | Description | Permission |
+|---|---|---|
+| `/sounds play <sound>` | Plays an audio sound effect from `data/sounds/` in your voice channel (with autocomplete) | Everyone |
+| `/sounds list` | Lists all available sound effects in `data/sounds/` with file sizes | Everyone |
+| `/sounds add <name> <file>` | Uploads and saves a new audio file (.mp3, .wav, .ogg, .m4a) to `data/sounds/` | Everyone |
+| `/sounds set_volume <1-100>` | Adjusts default soundboard playback volume percentage for the server | Everyone |
+| `/sounds help` | Displays available commands and usage guide for the Soundboard service | Everyone |

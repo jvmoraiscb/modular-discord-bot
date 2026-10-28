@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 import asyncio
 import logging
 import os
+from pathlib import Path
 import signal
 import sys
-from pathlib import Path
 
 from dotenv import load_dotenv
 
 from core.bot import ModularBot
-
-# Logging formatting configuration
-LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+from core.config import BotConfig
+from core.exceptions import ConfigValidationError
 
 
-def setup_logging() -> None:
-    """Configures root logger with level from environment variable."""
+def setup_logging(bot_config: BotConfig) -> None:
+    """Configures root logger using parameters from BotConfig and environment variables."""
     try:
         if hasattr(sys.stdout, "reconfigure"):
             sys.stdout.reconfigure(line_buffering=True)
@@ -25,37 +25,39 @@ def setup_logging() -> None:
     except Exception:
         pass
 
-    log_level_str = os.getenv("LOG_LEVEL", "INFO").upper()
+    log_level_str = os.getenv("LOG_LEVEL", bot_config.default_log_level).upper()
     log_level = getattr(logging, log_level_str, logging.INFO)
 
-    log_dir = Path("data")
-    log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / "bot.log"
+    log_file = Path(bot_config.log_file)
+    log_file.parent.mkdir(parents=True, exist_ok=True)
 
     logging.basicConfig(
         level=log_level,
-        format=LOG_FORMAT,
-        datefmt=DATE_FORMAT,
+        format=bot_config.log_format,
+        datefmt=bot_config.log_date_format,
         handlers=[
             logging.StreamHandler(sys.stdout),
             logging.FileHandler(log_file, encoding="utf-8"),
         ],
     )
-    # Silence noisy third-party loggers
     logging.getLogger("discord.gateway").setLevel(logging.WARNING)
     logging.getLogger("discord.client").setLevel(logging.INFO)
 
 
 def main() -> None:
     """Main application entry point."""
-    # Ensure current working directory is the project root
     project_root = Path(__file__).resolve().parent
     os.chdir(project_root)
 
-    # Load environment variables from .env
     load_dotenv()
 
-    setup_logging()
+    try:
+        bot_config = BotConfig.from_json_file("config/bot.json")
+    except ConfigValidationError as e:
+        sys.stderr.write(f"Startup aborted due to configuration validation failure: {e}\n")
+        sys.exit(1)
+
+    setup_logging(bot_config)
     logger = logging.getLogger("bot.main")
 
     token = os.getenv("DISCORD_TOKEN")
@@ -71,10 +73,13 @@ def main() -> None:
         )
         sys.exit(1)
 
-    logger.info("Starting Modular Discord Bot...")
-    bot = ModularBot()
+    logger.info("Initializing Modular Discord Bot...")
+    try:
+        bot = ModularBot()
+    except ConfigValidationError as e:
+        logger.critical("Startup aborted due to configuration validation failure: %s", e)
+        sys.exit(1)
 
-    # Graceful shutdown handler for SIGINT / SIGTERM
     def handle_signal(sig, frame):
         logger.info("Shutdown signal received. Disconnecting...")
         loop = asyncio.get_event_loop()
@@ -89,6 +94,9 @@ def main() -> None:
 
     try:
         bot.run(token, log_handler=None)
+    except ConfigValidationError as e:
+        logger.critical("Startup aborted due to service configuration validation failure: %s", e)
+        sys.exit(1)
     except Exception as e:
         logger.exception("Critical error during bot execution: %s", e)
         sys.exit(1)

@@ -1,58 +1,61 @@
+"""YouTube music service integrating yt-dlp playback and downloading with Discord."""
 from __future__ import annotations
+
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, ClassVar, Dict, List, Optional, TYPE_CHECKING, Type, Union
 
 import discord
 from discord import app_commands
 
 from core.service_base import BaseService
 from core.voice_queue import AudioTrack, GuildAudioPlayer
-from services.yt.ytdl_player import Song, YTDLExtractor, format_duration
+from services.yt.models import DownloadedMedia, Song, YTConfig, YTGuildConfig
+from services.yt.ytdl_player import YTDLExtractor, sanitize_filename
+
+if TYPE_CHECKING:
+    from core.bot import ModularBot
 
 logger = logging.getLogger("bot.service.yt")
 
-from services.yt.defaults import (
-    DEFAULT_VOLUME,
-    DEFAULT_VOLUME_MIN,
-    DEFAULT_VOLUME_MAX,
-    DEFAULT_VOICE_CONNECT_TIMEOUT,
-    DEFAULT_VOLUME_FLOAT_FALLBACK,
-    DEFAULT_COOKIES_PATH,
-    MIN_VOLUME_FLOAT,
-    MAX_VOLUME_FLOAT,
-)
 
-
-class YTService(BaseService):
+class YTService(BaseService[YTConfig, YTGuildConfig]):
     """YouTube music streaming and playlist queue management service."""
 
     name: str = "yt"
-    description: str = "YouTube audio streaming and playlist queue management"
+    description: str = "YouTube audio streaming, queue management, and media download"
+    config_class: ClassVar[Type[YTConfig]] = YTConfig
+    guild_config_class: ClassVar[Type[YTGuildConfig]] = YTGuildConfig
 
-    def __init__(self, bot, config: Optional[dict] = None) -> None:
+    def __init__(
+        self,
+        bot: ModularBot,
+        config: Optional[Union[YTConfig, Dict[str, Any]]] = None,
+    ) -> None:
         super().__init__(bot, config)
-        cookies_path = self.config.get("cookies_path", DEFAULT_COOKIES_PATH)
-        self.extractor = YTDLExtractor(cookies_path=cookies_path)
+        self.temp_dir = Path(self.config.temp_dir)
+        self.temp_dir.mkdir(parents=True, exist_ok=True)
+        self.extractor = YTDLExtractor(
+            config=self.config,
+            cookies_path=self.config.cookies_path,
+        )
 
     def get_player(self, guild: discord.Guild) -> GuildAudioPlayer:
         """Retrieves the unified audio player for this guild from the bot core."""
         return self.bot.get_audio_player(guild.id)
 
     def get_service_volume(self, guild_id: Optional[int]) -> float:
-        """Returns the configured YouTube playback volume as float (0.0 - 2.0)."""
-        raw_vol = self.get_guild_setting(guild_id, "volume", DEFAULT_VOLUME)
+        """Returns the configured YouTube playback volume as float."""
+        raw_vol = self.get_guild_setting(guild_id, "volume", self.config.volume)
         try:
             vol = float(raw_vol)
-            if vol > MAX_VOLUME_FLOAT:
+            max_float = float(self.config.volume_float_max)
+            min_float = float(self.config.volume_float_min)
+            if vol > max_float:
                 vol = vol / 100.0
-            return max(MIN_VOLUME_FLOAT, min(vol, MAX_VOLUME_FLOAT))
+            return max(min_float, min(vol, max_float))
         except (ValueError, TypeError):
-            return DEFAULT_VOLUME_FLOAT_FALLBACK
-
-    async def on_service_unload(self) -> None:
-        """Cleans up active music service upon unloading."""
-        pass
+            return float(self.config.volume_float_fallback)
 
     async def _connect_voice(self, interaction: discord.Interaction) -> Optional[discord.VoiceClient]:
         """Connects or moves the bot to the invoking user's voice channel."""
@@ -92,7 +95,8 @@ class YTService(BaseService):
                     pass
 
         try:
-            return await target_channel.connect(reconnect=True, timeout=DEFAULT_VOICE_CONNECT_TIMEOUT)
+            connect_timeout = float(self.config.voice_connect_timeout)
+            return await target_channel.connect(reconnect=True, timeout=connect_timeout)
         except discord.ClientException:
             vc = guild.voice_client
             if vc and vc.channel and vc.channel.id != target_channel.id:
@@ -115,7 +119,6 @@ class YTService(BaseService):
                 )
             return None
 
-    # --- /yt COMMAND GROUP ---
     yt_group = app_commands.Group(name="yt", description="YouTube music playback and queue commands")
 
     @yt_group.command(name="play", description="Plays audio from a YouTube link or search query.")
@@ -126,7 +129,6 @@ class YTService(BaseService):
             await interaction.response.send_message("Command only available in servers.", ephemeral=True)
             return
 
-        # Defer response as audio extraction can take a second
         await interaction.response.defer()
 
         vc = await self._connect_voice(interaction)
@@ -148,6 +150,8 @@ class YTService(BaseService):
             title=song.title,
             source=song.stream_url,
             volume=self.get_service_volume(guild.id),
+            volume_min=float(self.config.volume_float_min),
+            volume_max=float(self.config.volume_float_max),
             service_name="yt",
             requester=song.requester,
             channel=interaction.channel,
@@ -181,6 +185,96 @@ class YTService(BaseService):
             embed.description = f"**Added to queue (#{pos})**"
             await interaction.followup.send(embed=embed)
 
+    @yt_group.command(name="download", description="Downloads a YouTube video or audio to your computer.")
+    @app_commands.describe(
+        query="YouTube video URL or search keywords",
+        audio_only="Set to True to download only audio (MP3), False for video (MP4)",
+    )
+    async def cmd_download(
+        self,
+        interaction: discord.Interaction,
+        query: str,
+        audio_only: bool = False,
+    ):
+        guild = interaction.guild
+        if not guild:
+            await interaction.response.send_message("Command only available in servers.", ephemeral=True)
+            return
+
+        await interaction.response.defer()
+
+        max_upload_bytes = int(self.config.max_discord_upload_bytes)
+        upload_limit = (
+            interaction.guild.filesize_limit
+            if interaction.guild
+            else max_upload_bytes
+        )
+
+        media: Optional[DownloadedMedia] = None
+        try:
+            media = await self.extractor.download_media(
+                query=query,
+                output_dir=self.temp_dir,
+                audio_only=audio_only,
+                loop=self.bot.loop,
+            )
+
+            if not media or not media.file_path.exists():
+                await interaction.followup.send(
+                    f"Could not download media for: `{query}`"
+                )
+                return
+
+            if media.filesize > upload_limit:
+                limit_mb = upload_limit / (1024 * 1024)
+                await interaction.followup.send(
+                    f"The downloaded file is **{media.formatted_filesize}**, which exceeds "
+                    f"the server upload limit of **{limit_mb:.1f} MB**.\n"
+                    f"Tip: Try using `audio_only: True` or choose a shorter video."
+                )
+                return
+
+            ext = media.file_path.suffix.lstrip(".")
+            max_fn_len = int(self.config.max_filename_length)
+            clean_name = sanitize_filename(media.title, max_fn_len)
+            discord_filename = f"{clean_name}.{ext}"
+
+            discord_file = discord.File(str(media.file_path), filename=discord_filename)
+
+            embed = discord.Embed(
+                title=media.title,
+                url=media.webpage_url,
+                color=discord.Color.red(),
+                description="Click the attached file below to save it to your computer.",
+            )
+            embed.add_field(
+                name="Format",
+                value="MP3 Audio" if audio_only else "MP4 Video",
+                inline=True,
+            )
+            embed.add_field(name="Size", value=media.formatted_filesize, inline=True)
+            embed.add_field(name="Duration", value=media.formatted_duration, inline=True)
+            if media.uploader:
+                embed.add_field(name="Channel", value=media.uploader, inline=True)
+            embed.set_footer(
+                text=f"Requested by {interaction.user.display_name}",
+                icon_url=interaction.user.display_avatar.url if interaction.user.display_avatar else None,
+            )
+
+            await interaction.followup.send(embed=embed, file=discord_file)
+
+        except Exception as e:
+            logger.error("Failed to process /yt download for query '%s': %s", query, e)
+            await interaction.followup.send(
+                f"An error occurred while downloading: {e}"
+            )
+        finally:
+            if media and media.file_path and media.file_path.exists():
+                try:
+                    media.file_path.unlink(missing_ok=True)
+                except Exception as cleanup_err:
+                    logger.warning("Failed to remove temporary download file %s: %s", media.file_path, cleanup_err)
+
     def get_help_title(self) -> str:
         """Returns the formatted title for YouTube help in embeds."""
         return "YouTube Music Commands (/yt)"
@@ -189,6 +283,7 @@ class YTService(BaseService):
         """Returns the list of (command_syntax, description) for YouTube service."""
         return [
             ("/yt play <query>", "Stream audio from YouTube link or search query"),
+            ("/yt download <query> [audio_only]", "Download a YouTube video or audio to your computer"),
             ("/yt set_volume <1-100>", "Set default music playback volume percentage for this server"),
             ("/yt config", "View current YouTube playback configuration for this server"),
             ("/yt help", "Display this YouTube command guide"),
@@ -224,10 +319,10 @@ class YTService(BaseService):
             return
 
         vol_pct = int(self.get_service_volume(guild.id) * 100)
-        vol_min, vol_max = self.get_numeric_bounds("volume", DEFAULT_VOLUME_MIN, DEFAULT_VOLUME_MAX)
+        vol_min, vol_max = self.get_numeric_bounds("volume")
         status_str = "Active" if self.name in self.bot.service_manager.services else "Disabled"
 
-        cookies_path = self.config.get("cookies_path", DEFAULT_COOKIES_PATH)
+        cookies_path = self.config.cookies_path
         cookies_status = "Loaded" if Path(cookies_path).is_file() else "Not found"
 
         embed = discord.Embed(
@@ -241,6 +336,7 @@ class YTService(BaseService):
             name="Available Commands",
             value=(
                 "• `/yt play <query>`: stream audio from YouTube link or search query\n"
+                "• `/yt download <query> [audio_only]`: download video or audio to your computer\n"
                 "• `/yt set_volume <1-100>`: set music playback volume percentage\n"
                 "• `/yt config`: view current YouTube configuration\n"
                 "• `/yt help`: display YouTube commands help guide"
@@ -257,7 +353,7 @@ class YTService(BaseService):
             await interaction.response.send_message("Command only available in servers.", ephemeral=True)
             return
 
-        vol_min, vol_max = self.get_numeric_bounds("volume", DEFAULT_VOLUME_MIN, DEFAULT_VOLUME_MAX)
+        vol_min, vol_max = self.get_numeric_bounds("volume")
         if level < vol_min or level > vol_max:
             await interaction.response.send_message(
                 f"Volume must be between {vol_min} and {vol_max}.",
@@ -267,8 +363,12 @@ class YTService(BaseService):
 
         player = self.get_player(guild)
         vol_float = level / 100.0
-        player.set_current_volume(vol_float)
+        if player.current_track and player.current_track.service_name == "yt":
+            player.set_current_volume(
+                vol_float,
+                volume_min=float(self.config.volume_float_min),
+                volume_max=float(self.config.volume_float_max),
+            )
         await self.set_guild_setting(guild.id, "volume", level)
 
         await interaction.response.send_message(f"Playback volume set to **{level}%**.")
-

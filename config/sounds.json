@@ -1,0 +1,25 @@
+{
+  "enabled": true,
+  "volume": 100,
+  "volume_min": 1,
+  "volume_max": 100,
+  "volume_float_min": 0.0,
+  "volume_float_max": 2.0,
+  "volume_float_fallback": 1.0,
+  "sounds_dir": "data/sounds",
+  "voice_connect_timeout": 15.0,
+  "supported_extensions": [
+    ".mp3",
+    ".wav",
+    ".ogg",
+    ".m4a",
+    ".aac",
+    ".flac",
+    ".opus"
+  ],
+  "max_file_size_bytes": 10485760,
+  "max_name_length": 50,
+  "max_autocomplete_choices": 25,
+  "max_sounds_per_page": 25,
+  "sound_name_pattern": "^[a-zA-Z0-9_-]+$"
+}

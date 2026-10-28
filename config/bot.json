@@ -4,6 +4,48 @@
   "sync_commands_on_startup": true,
   "status_message": "/bot help",
   "ffmpeg_path": "ffmpeg",
+  "db_path": "data/guild_settings.db",
+  "db_timeout": 30.0,
+  "services_dir": "services",
+  "config_dir": "config",
+  "log_dir": "data",
+  "log_file": "data/bot.log",
+  "default_log_level": "INFO",
+  "log_format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+  "log_date_format": "%Y-%m-%d %H:%M:%S",
+  "stream_before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+  "stream_options": "-vn -loglevel fatal",
+  "local_file_options": "-vn -loglevel error",
+  "auto_disconnect_timeout": 0,
   "auto_disconnect_timeout_min": 0,
-  "auto_disconnect_timeout_max": 86400
+  "auto_disconnect_timeout_max": 86400,
+  "voice_connect_timeout": 15.0,
+  "max_queue_display": 10,
+  "max_autocomplete_choices": 25,
+  "timeout_choices": [
+    [
+      "0s (Never disconnect)",
+      0
+    ],
+    [
+      "60s (1 minute)",
+      60
+    ],
+    [
+      "120s (2 minutes)",
+      120
+    ],
+    [
+      "180s (3 minutes)",
+      180
+    ],
+    [
+      "300s (5 minutes)",
+      300
+    ],
+    [
+      "600s (10 minutes)",
+      600
+    ]
+  ]
 }
