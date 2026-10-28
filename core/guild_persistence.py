@@ -1,4 +1,4 @@
-"""Dynamic model-driven SQLite storage for per-guild configurations."""
+"""Dynamic model-driven SQLite persistence for per-guild configurations."""
 from __future__ import annotations
 
 import asyncio
@@ -9,12 +9,12 @@ from typing import Any, Dict, Optional, Type, TypeVar
 
 from core.config import BaseGuildConfig, BotGuildConfig
 
-logger = logging.getLogger("bot.guild_store")
+logger = logging.getLogger("bot.guild_persistence")
 
 TGuildModel = TypeVar("TGuildModel", bound=BaseGuildConfig)
 
 
-class GuildStore:
+class GuildPersistence:
     """Persistent SQLite storage driven by BaseGuildConfig model classes."""
 
     def __init__(self, db_path: str, timeout: float = 30.0) -> None:
@@ -120,6 +120,7 @@ class GuildStore:
             with self._get_connection() as conn:
                 with conn:
                     conn.execute(query, (guild_id, value))
+            logger.info("Saved guild setting %s.%s = %r for guild %s", table_name, key, value, guild_id)
         except Exception as e:
             logger.error("Failed to write %s to %s for guild %s: %s", key, table_name, guild_id, e)
 
@@ -129,3 +130,4 @@ class GuildStore:
             loop = asyncio.get_event_loop()
             cfg = await loop.run_in_executor(None, self.get_guild_config, guild_id, service_name)
             return cfg.to_dict(exclude_none=True) if cfg else {}
+

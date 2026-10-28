@@ -78,7 +78,9 @@ class BaseConfigModel:
             logger.critical(msg)
             raise ConfigValidationError(msg)
 
-        return cls.from_dict(raw_data, source_path=file_path)
+        instance = cls.from_dict(raw_data, source_path=file_path)
+        logger.info("Loaded configuration model '%s' from %s", cls.__name__, file_path)
+        return instance
 
     def to_dict(self) -> Dict[str, Any]:
         """Serializes the configuration model back to a dictionary."""
@@ -90,6 +92,7 @@ class BaseConfigModel:
         file_path.parent.mkdir(parents=True, exist_ok=True)
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(self.to_dict(), f, indent=2, ensure_ascii=False)
+        logger.info("Saved configuration model '%s' to %s", self.__class__.__name__, file_path)
 
     def get(self, key: str, default: Any = None) -> Any:
         """Dictionary-compatible getter for configuration attributes."""

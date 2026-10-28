@@ -55,6 +55,7 @@ class TTSService(BaseService[TTSConfig, TTSGuildConfig]):
                     if vc.channel and vc.channel.id != target_channel.id:
                         try:
                             await vc.move_to(target_channel)
+                            logger.info("Moved TTS voice client to channel %s in guild %s", target_channel.id, guild.id)
                         except Exception as e:
                             logger.error(
                                 "Failed to move to voice channel %s in guild %s: %s",
@@ -71,15 +72,18 @@ class TTSService(BaseService[TTSConfig, TTSGuildConfig]):
                     await asyncio.sleep(float(self.config.disconnect_cleanup_delay))
 
             try:
-                return await target_channel.connect(
+                connected_vc = await target_channel.connect(
                     reconnect=True,
                     timeout=float(self.config.voice_connect_timeout),
                 )
+                logger.info("Connected TTS voice client to channel %s in guild %s", target_channel.id, guild.id)
+                return connected_vc
             except discord.ClientException:
                 vc = guild.voice_client
                 if vc and vc.is_connected() and vc.channel and vc.channel.id != target_channel.id:
                     try:
                         await vc.move_to(target_channel)
+                        logger.info("Moved TTS voice client to channel %s in guild %s", target_channel.id, guild.id)
                     except Exception:
                         pass
                 return vc
@@ -225,6 +229,7 @@ class TTSService(BaseService[TTSConfig, TTSGuildConfig]):
             )
             return
 
+        logger.info("Command /tts speak invoked by %s in guild %s", interaction.user, guild.id)
         await interaction.response.defer()
 
         vc = await self._connect_voice(interaction)
@@ -240,6 +245,7 @@ class TTSService(BaseService[TTSConfig, TTSGuildConfig]):
 
         cleaned_text = self.engine.clean_text(text, max_length=max_len, filter_urls=filter_urls)
         if not cleaned_text:
+            logger.warning("Rejected empty/invalid TTS text from %s in guild %s", interaction.user, guild.id)
             await interaction.followup.send("The provided text is invalid or empty.")
             return
 
@@ -286,6 +292,7 @@ class TTSService(BaseService[TTSConfig, TTSGuildConfig]):
         )
 
         pos = await player.add_track(track)
+        logger.info("Enqueued TTS speech from %s in guild %s (position=%d)", interaction.user, guild.id, pos)
         if pos == 0:
             await interaction.followup.send(f"**{interaction.user.display_name}**: \"{cleaned_text}\"")
         else:
@@ -335,6 +342,7 @@ class TTSService(BaseService[TTSConfig, TTSGuildConfig]):
 
     @tts_group.command(name="help", description="Displays available commands and usage for the Text-to-Speech service.")
     async def cmd_tts_help(self, interaction: discord.Interaction):
+        logger.info("Command /tts help invoked by %s", interaction.user)
         embed = self.get_help_embed()
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -345,6 +353,7 @@ class TTSService(BaseService[TTSConfig, TTSGuildConfig]):
             await interaction.response.send_message("Command only available in servers.", ephemeral=True)
             return
 
+        logger.info("Command /tts config invoked by %s in guild %s", interaction.user, guild.id)
         voice = str(self.get_guild_setting(guild.id, "voice", str(self.config.voice)))
         speed = self.get_guild_speed(guild.id)
         intro_sound = self.get_guild_setting(guild.id, "intro_sound", str(self.config.intro_sound))
@@ -409,6 +418,7 @@ class TTSService(BaseService[TTSConfig, TTSGuildConfig]):
             return
 
         await self.set_guild_setting(guild.id, "max_text_length", length)
+        logger.info("TTS max_text_length set to %d in guild %s by %s", length, guild.id, interaction.user)
         await interaction.response.send_message(
             f"Maximum text length for TTS set to **{length} characters**."
         )
@@ -423,6 +433,7 @@ class TTSService(BaseService[TTSConfig, TTSGuildConfig]):
             return
 
         await self.set_guild_setting(interaction.guild.id, "voice", voice)
+        logger.info("TTS voice set to '%s' in guild %s by %s", voice, interaction.guild.id, interaction.user)
         await interaction.response.send_message(
             f"Server voice successfully updated to: `{voice}`"
         )
@@ -458,6 +469,7 @@ class TTSService(BaseService[TTSConfig, TTSGuildConfig]):
             return
 
         await self.set_guild_setting(interaction.guild.id, "voice_speed", speed_val)
+        logger.info("TTS voice_speed set to %.1fx in guild %s by %s", speed_val, interaction.guild.id, interaction.user)
         await interaction.response.send_message(
             f"Speech speed successfully updated to: `{speed_val:.1f}x`"
         )
@@ -477,6 +489,7 @@ class TTSService(BaseService[TTSConfig, TTSGuildConfig]):
         sound_clean = sound.strip()
         if sound_clean.lower() in ("none", "disabled", "off"):
             await self.set_guild_setting(interaction.guild.id, "intro_sound", str(self.config.intro_sound))
+            logger.info("TTS intro_sound disabled in guild %s by %s", interaction.guild.id, interaction.user)
             await interaction.response.send_message("Intro sound effect disabled.")
             return
 
@@ -489,6 +502,7 @@ class TTSService(BaseService[TTSConfig, TTSGuildConfig]):
             return
 
         await self.set_guild_setting(interaction.guild.id, "intro_sound", sound_clean)
+        logger.info("TTS intro_sound set to '%s' in guild %s by %s", sound_clean, interaction.guild.id, interaction.user)
         clean_title = sound_clean.rsplit(".", 1)[0].replace("_", " ").title()
         delay_val = self.get_guild_intro_delay(interaction.guild.id)
         await interaction.response.send_message(
@@ -527,6 +541,7 @@ class TTSService(BaseService[TTSConfig, TTSGuildConfig]):
             return
 
         await self.set_guild_setting(interaction.guild.id, "intro_delay", delay_val)
+        logger.info("TTS intro_delay set to %.2fs in guild %s by %s", delay_val, interaction.guild.id, interaction.user)
         await interaction.response.send_message(
             f"Intro sound delay set to: `{delay_val:.1f}s`!\n"
             f"Speech will now begin {delay_val:.1f}s after the intro sound starts."
@@ -549,11 +564,13 @@ class TTSService(BaseService[TTSConfig, TTSGuildConfig]):
 
         if channel is None:
             await self.set_guild_setting(interaction.guild.id, "bound_channel_id", None)
+            logger.info("TTS auto-reading channel disabled in guild %s by %s", interaction.guild.id, interaction.user)
             await interaction.response.send_message(
                 "Auto-reading disabled. Use `/tts speak` to synthesize speech on demand."
             )
         else:
             await self.set_guild_setting(interaction.guild.id, "bound_channel_id", channel.id)
+            logger.info("TTS auto-reading channel set to %s in guild %s by %s", channel.id, interaction.guild.id, interaction.user)
             await interaction.response.send_message(
                 f"Auto-reading channel set to {channel.mention}!\n"
                 f"When you send messages in this channel, the bot will automatically join your voice channel and read them aloud."
@@ -578,6 +595,7 @@ class TTSService(BaseService[TTSConfig, TTSGuildConfig]):
 
         vol_float = level / 100.0
         await self.set_guild_setting(guild.id, "volume", level)
+        logger.info("TTS volume set to %d%% in guild %s by %s", level, guild.id, interaction.user)
 
         player = self.get_player(guild)
         if player.current_track and player.current_track.service_name == "tts":
@@ -672,6 +690,13 @@ class TTSService(BaseService[TTSConfig, TTSGuildConfig]):
                 text=cleaned,
                 is_temporary=True,
             )
-            await player.add_track(track)
+            pos = await player.add_track(track)
+            logger.info(
+                "Auto-read TTS message from %s in guild %s channel %s (position=%d)",
+                message.author,
+                message.guild.id,
+                message.channel.id,
+                pos,
+            )
         except Exception as e:
             logger.error("Failed to synthesize automatic chat message in guild %s: %s", message.guild.id, e)

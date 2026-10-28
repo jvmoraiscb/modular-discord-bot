@@ -10,7 +10,7 @@ from discord.ext import commands
 
 from core.config import BotConfig
 from core.ffmpeg import configure_ffmpeg
-from core.guild_store import GuildStore
+from core.guild_persistence import GuildPersistence
 from core.service_manager import ServiceManager
 from core.voice_queue import GuildAudioPlayer
 
@@ -44,7 +44,7 @@ class ModularBot(commands.Bot):
         )
 
         # Core components initialized from BotConfig
-        self.guild_store = GuildStore(
+        self.guild_persistence = GuildPersistence(
             db_path=self.bot_config.db_path,
             timeout=self.bot_config.db_timeout,
         )
@@ -67,7 +67,7 @@ class ModularBot(commands.Bot):
     def get_guild_timeout(self, guild_id: Optional[int]) -> int:
         """Returns configured inactivity timeout in seconds (0 = never disconnect)."""
         if guild_id is not None:
-            custom_val = self.guild_store.get(guild_id, "bot", "auto_disconnect_timeout")
+            custom_val = self.guild_persistence.get(guild_id, "bot", "auto_disconnect_timeout")
             if custom_val is not None:
                 try:
                     return max(0, int(custom_val))
@@ -78,7 +78,8 @@ class ModularBot(commands.Bot):
     async def set_guild_timeout(self, guild_id: int, timeout: int) -> None:
         """Saves custom inactivity timeout in seconds for a guild."""
         val = max(0, int(timeout))
-        await self.guild_store.set(guild_id, "bot", "auto_disconnect_timeout", val)
+        await self.guild_persistence.set(guild_id, "bot", "auto_disconnect_timeout", val)
+        logger.info("Updated auto_disconnect_timeout to %ds for guild %s", val, guild_id)
         if val == 0:
             player = self.audio_players.get(guild_id)
             if player:
@@ -118,6 +119,7 @@ class ModularBot(commands.Bot):
             description="Displays all available bot commands and descriptions across all services.",
         )
         async def cmd_bot_help(interaction: discord.Interaction):
+            logger.info("Command /bot help invoked by %s", interaction.user)
             embed = discord.Embed(
                 title="Bot Command Reference",
                 description="List of all slash commands organized by category. Type `/` in Discord to see autocomplete suggestions.",
@@ -192,6 +194,7 @@ class ModularBot(commands.Bot):
                     return
                 try:
                     await vc.move_to(target_channel)
+                    logger.info("Moved voice client to channel %s in guild %s via /bot join", target_channel.id, guild.id)
                     await interaction.response.send_message(f"Moved to voice channel `{target_channel.name}`.")
                     return
                 except Exception as e:
@@ -202,6 +205,7 @@ class ModularBot(commands.Bot):
             try:
                 connect_timeout = float(self.bot_config.voice_connect_timeout)
                 await target_channel.connect(reconnect=True, timeout=connect_timeout)
+                logger.info("Connected to voice channel %s in guild %s via /bot join", target_channel.id, guild.id)
                 await interaction.response.send_message(f"Connected to voice channel `{target_channel.name}`.")
             except Exception as e:
                 logger.error("Failed to connect to voice channel %s in guild %s: %s", target_channel.id, guild.id, e)
@@ -227,6 +231,7 @@ class ModularBot(commands.Bot):
 
             ch_name = vc.channel.name if vc.channel else "voice"
             await vc.disconnect(force=True)
+            logger.info("Disconnected from voice channel '%s' in guild %s via /bot leave by %s", ch_name, guild.id, interaction.user)
             await interaction.response.send_message(f"Disconnected from `{ch_name}` and stopped playback.")
 
         @bot_group.command(
@@ -241,6 +246,7 @@ class ModularBot(commands.Bot):
 
             player = self.get_audio_player(guild.id)
             if player.pause():
+                logger.info("Playback paused in guild %s via /bot pause by %s", guild.id, interaction.user)
                 await interaction.response.send_message("Audio playback paused.")
             else:
                 await interaction.response.send_message("Nothing is currently playing.", ephemeral=True)
@@ -257,6 +263,7 @@ class ModularBot(commands.Bot):
 
             player = self.get_audio_player(guild.id)
             if player.resume():
+                logger.info("Playback resumed in guild %s via /bot resume by %s", guild.id, interaction.user)
                 await interaction.response.send_message("Audio playback resumed.")
             else:
                 await interaction.response.send_message("Playback is not paused.", ephemeral=True)
@@ -276,6 +283,7 @@ class ModularBot(commands.Bot):
             if player.skip():
                 title = current.title if current else "current audio"
                 svc_tag = f" `[{current.service_name.upper()}]`" if (current and current.service_name) else ""
+                logger.info("Skipped track '%s' in guild %s via /bot skip by %s", title, guild.id, interaction.user)
                 await interaction.response.send_message(f"Skipped: **{title}**{svc_tag}")
             else:
                 await interaction.response.send_message("No audio is currently playing to skip.", ephemeral=True)
@@ -296,6 +304,7 @@ class ModularBot(commands.Bot):
                 return
 
             player.stop()
+            logger.info("Stopped playback and cleared queue in guild %s via /bot stop by %s", guild.id, interaction.user)
             await interaction.response.send_message("Playback stopped and audio queue cleared.")
 
         @bot_group.command(
@@ -308,6 +317,7 @@ class ModularBot(commands.Bot):
                 await interaction.response.send_message("Command only available in servers.", ephemeral=True)
                 return
 
+            logger.info("Command /bot queue invoked by %s in guild %s", interaction.user, guild.id)
             player = self.get_audio_player(guild.id)
             current = player.current_track
             queue_items = list(player.queue)
@@ -365,6 +375,7 @@ class ModularBot(commands.Bot):
                 await interaction.response.send_message("Command only available in servers.", ephemeral=True)
                 return
 
+            logger.info("Command /bot nowplaying invoked by %s in guild %s", interaction.user, guild.id)
             player = self.get_audio_player(guild.id)
             track = player.current_track
 
@@ -461,6 +472,7 @@ class ModularBot(commands.Bot):
                 await interaction.response.send_message("Command only available in servers.", ephemeral=True)
                 return
 
+            logger.info("Command /bot config invoked by %s in guild %s", interaction.user, guild.id)
             current_timeout = self.get_guild_timeout(guild.id)
             timeout_str = "Never (disabled)" if current_timeout == 0 else f"{current_timeout}s ({current_timeout // 60}m)"
             prefix = self.bot_config.prefix
@@ -521,15 +533,18 @@ class ModularBot(commands.Bot):
                 await ctx.send("This command can only be used in a server.")
                 return
 
+            logger.info("Manual command sync triggered by %s in guild %s", ctx.author, ctx.guild.id)
             status_msg = await ctx.send("Synchronizing global commands and clearing guild duplicates...")
             try:
                 self.tree.clear_commands(guild=ctx.guild)
                 await self.tree.sync(guild=ctx.guild)
                 synced = await self.tree.sync()
+                logger.info("Manually synchronized %d slash commands globally.", len(synced))
                 await status_msg.edit(
                     content=f"{len(synced)} slash commands synchronized globally without duplicates! (Press Ctrl+R in Discord to refresh your UI cache)"
                 )
             except Exception as e:
+                logger.error("Failed manual command sync in guild %s: %s", ctx.guild.id, e)
                 await status_msg.edit(content=f"Error syncing commands: {e}")
 
     async def on_ready(self) -> None:

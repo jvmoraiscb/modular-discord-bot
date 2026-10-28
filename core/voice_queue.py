@@ -110,11 +110,25 @@ class GuildAudioPlayer:
 
         if self.current_track is None and not self.is_playing() and not self.is_paused():
             self.queue.append(track)
+            logger.info(
+                "Track '%s' (service: %s) added to empty queue in guild %s; starting playback immediately.",
+                track.title,
+                track.service_name or "unknown",
+                self.guild_id,
+            )
             await self.play_next()
             return 0
 
         self.queue.append(track)
-        return len(self.queue)
+        pos = len(self.queue)
+        logger.info(
+            "Track '%s' (service: %s) enqueued at position #%d in guild %s.",
+            track.title,
+            track.service_name or "unknown",
+            pos,
+            self.guild_id,
+        )
+        return pos
 
     async def play_next(self) -> None:
         """Pops and plays the next audio track from the queue."""
@@ -184,6 +198,8 @@ class GuildAudioPlayer:
         """Skips the currently playing track."""
         vc = self.voice_client
         if vc and (vc.is_playing() or vc.is_paused()):
+            track_title = self.current_track.title if self.current_track else "unknown"
+            logger.info("Skipping current track '%s' in guild %s", track_title, self.guild_id)
             vc.stop()
             return True
         return False
@@ -192,6 +208,8 @@ class GuildAudioPlayer:
         """Pauses audio playback."""
         vc = self.voice_client
         if vc and vc.is_playing():
+            track_title = self.current_track.title if self.current_track else "unknown"
+            logger.info("Pausing playback of '%s' in guild %s", track_title, self.guild_id)
             vc.pause()
             return True
         return False
@@ -200,6 +218,8 @@ class GuildAudioPlayer:
         """Resumes paused audio playback."""
         vc = self.voice_client
         if vc and vc.is_paused():
+            track_title = self.current_track.title if self.current_track else "unknown"
+            logger.info("Resuming playback of '%s' in guild %s", track_title, self.guild_id)
             vc.resume()
             return True
         return False
@@ -207,6 +227,7 @@ class GuildAudioPlayer:
     def stop(self) -> None:
         """Flushes the queue, removes temporary files, and stops current playback."""
         self._stopped = True
+        cleared_count = len(self.queue)
 
         while self.queue:
             t = self.queue.popleft()
@@ -220,6 +241,7 @@ class GuildAudioPlayer:
         if vc and (vc.is_playing() or vc.is_paused()):
             vc.stop()
 
+        logger.info("Stopped playback and cleared %d queued track(s) in guild %s", cleared_count, self.guild_id)
         self._start_idle_timer()
 
     def set_current_volume(self, volume: float, volume_min: float, volume_max: float) -> None:
@@ -230,11 +252,17 @@ class GuildAudioPlayer:
         vc = self.voice_client
         if vc and vc.source and isinstance(vc.source, discord.PCMVolumeTransformer):
             vc.source.volume = vol
+            logger.info("Updated active track volume to %.2f in guild %s", vol, self.guild_id)
 
     def _start_idle_timer(self) -> None:
         """Starts the inactivity disconnect countdown if timeout > 0."""
         self._cancel_idle_timer()
         if self.idle_timeout > 0:
+            logger.debug(
+                "Starting voice inactivity timer (%ds) for guild %s",
+                self.idle_timeout,
+                self.guild_id,
+            )
             self._idle_task = asyncio.create_task(self._disconnect_when_idle())
 
     def _cancel_idle_timer(self) -> None:
@@ -273,5 +301,6 @@ class GuildAudioPlayer:
             p = Path(track.source)
             if p.exists():
                 p.unlink(missing_ok=True)
+                logger.debug("Deleted temporary audio file %s for guild %s", p, self.guild_id)
         except Exception as e:
             logger.warning("Failed to delete temporary audio file %s: %s", track.source, e)

@@ -9,8 +9,8 @@ import discord
 from discord import app_commands
 
 from core.service_base import BaseService
-from core.voice_queue import AudioTrack, GuildAudioPlayer
-from services.yt.models import DownloadedMedia, Song, YTConfig, YTGuildConfig
+from core.voice_queue import AudioTrack, GuildAudioPlayer, format_duration
+from services.yt.models import DownloadedMedia, DownloadTrimError, Song, YTConfig, YTGuildConfig
 from services.yt.ytdl_player import YTDLExtractor, sanitize_filename
 
 if TYPE_CHECKING:
@@ -85,6 +85,7 @@ class YTService(BaseService[YTConfig, YTGuildConfig]):
                 if vc.channel and vc.channel.id != target_channel.id:
                     try:
                         await vc.move_to(target_channel)
+                        logger.info("Moved voice client to channel %s in guild %s", target_channel.id, guild.id)
                     except Exception as e:
                         logger.error("Failed to move to voice channel %s in guild %s: %s", target_channel.id, guild.id, e)
                 return vc
@@ -96,12 +97,15 @@ class YTService(BaseService[YTConfig, YTGuildConfig]):
 
         try:
             connect_timeout = float(self.config.voice_connect_timeout)
-            return await target_channel.connect(reconnect=True, timeout=connect_timeout)
+            connected_vc = await target_channel.connect(reconnect=True, timeout=connect_timeout)
+            logger.info("Connected to voice channel %s in guild %s", target_channel.id, guild.id)
+            return connected_vc
         except discord.ClientException:
             vc = guild.voice_client
             if vc and vc.channel and vc.channel.id != target_channel.id:
                 try:
                     await vc.move_to(target_channel)
+                    logger.info("Moved voice client to channel %s in guild %s", target_channel.id, guild.id)
                 except Exception:
                     pass
             return vc
@@ -129,6 +133,13 @@ class YTService(BaseService[YTConfig, YTGuildConfig]):
             await interaction.response.send_message("Command only available in servers.", ephemeral=True)
             return
 
+        logger.info(
+            "Command /yt play invoked by %s in guild %s with query '%s'",
+            interaction.user,
+            guild.id,
+            query,
+        )
+
         await interaction.response.defer()
 
         vc = await self._connect_voice(interaction)
@@ -143,6 +154,7 @@ class YTService(BaseService[YTConfig, YTGuildConfig]):
         )
 
         if not song:
+            logger.warning("Could not extract audio for query '%s' in guild %s", query, guild.id)
             await interaction.followup.send(f"Could not find or extract audio for: `{query}`")
             return
 
@@ -163,6 +175,12 @@ class YTService(BaseService[YTConfig, YTGuildConfig]):
         )
 
         pos = await player.add_track(track)
+        logger.info(
+            "Track '%s' added to guild %s queue (position=%d)",
+            song.title,
+            guild.id,
+            pos,
+        )
 
         embed = discord.Embed(
             color=discord.Color.red(),
@@ -189,16 +207,70 @@ class YTService(BaseService[YTConfig, YTGuildConfig]):
     @app_commands.describe(
         query="YouTube video URL or search keywords",
         audio_only="Set to True to download only audio (MP3), False for video (MP4)",
+        start_time="Start time of the cut in seconds (must be >= 0)",
+        end_time="End time of the cut in seconds (must be <= video duration)",
     )
     async def cmd_download(
         self,
         interaction: discord.Interaction,
         query: str,
         audio_only: bool = False,
+        start_time: Optional[int] = None,
+        end_time: Optional[int] = None,
     ):
         guild = interaction.guild
         if not guild:
             await interaction.response.send_message("Command only available in servers.", ephemeral=True)
+            return
+
+        logger.info(
+            "Command /yt download invoked by %s in guild %s: query='%s', audio_only=%s, start_time=%s, end_time=%s",
+            interaction.user,
+            guild.id,
+            query,
+            audio_only,
+            start_time,
+            end_time,
+        )
+
+        min_start = int(self.config.min_start_time)
+        if start_time is not None and start_time < min_start:
+            logger.warning(
+                "Rejected /yt download in guild %s: start_time (%ds) < %ds",
+                guild.id,
+                start_time,
+                min_start,
+            )
+            await interaction.response.send_message(
+                f"Start time cannot be less than {min_start} seconds.",
+                ephemeral=True,
+            )
+            return
+
+        if end_time is not None and end_time <= min_start:
+            logger.warning(
+                "Rejected /yt download in guild %s: end_time (%ds) <= %ds",
+                guild.id,
+                end_time,
+                min_start,
+            )
+            await interaction.response.send_message(
+                f"End time must be greater than {min_start} seconds.",
+                ephemeral=True,
+            )
+            return
+
+        if start_time is not None and end_time is not None and start_time >= end_time:
+            logger.warning(
+                "Rejected /yt download in guild %s: start_time (%ds) >= end_time (%ds)",
+                guild.id,
+                start_time,
+                end_time,
+            )
+            await interaction.response.send_message(
+                f"Start time ({start_time}s) must be less than end time ({end_time}s).",
+                ephemeral=True,
+            )
             return
 
         await interaction.response.defer()
@@ -216,10 +288,13 @@ class YTService(BaseService[YTConfig, YTGuildConfig]):
                 query=query,
                 output_dir=self.temp_dir,
                 audio_only=audio_only,
+                start_time=start_time,
+                end_time=end_time,
                 loop=self.bot.loop,
             )
 
             if not media or not media.file_path.exists():
+                logger.warning("Download returned no valid file for query '%s' in guild %s", query, guild.id)
                 await interaction.followup.send(
                     f"Could not download media for: `{query}`"
                 )
@@ -227,10 +302,17 @@ class YTService(BaseService[YTConfig, YTGuildConfig]):
 
             if media.filesize > upload_limit:
                 limit_mb = upload_limit / (1024 * 1024)
+                logger.warning(
+                    "Downloaded media '%s' (%s) exceeds upload limit (%.1f MB) in guild %s",
+                    media.title,
+                    media.formatted_filesize,
+                    limit_mb,
+                    guild.id,
+                )
                 await interaction.followup.send(
                     f"The downloaded file is **{media.formatted_filesize}**, which exceeds "
                     f"the server upload limit of **{limit_mb:.1f} MB**.\n"
-                    f"Tip: Try using `audio_only: True` or choose a shorter video."
+                    f"Tip: Try using `audio_only: True` or choose a shorter cut/video."
                 )
                 return
 
@@ -254,6 +336,12 @@ class YTService(BaseService[YTConfig, YTGuildConfig]):
             )
             embed.add_field(name="Size", value=media.formatted_filesize, inline=True)
             embed.add_field(name="Duration", value=media.formatted_duration, inline=True)
+            if media.start_time is not None and media.end_time is not None:
+                embed.add_field(
+                    name="Cut Interval",
+                    value=f"`{format_duration(media.start_time)} - {format_duration(media.end_time)}` ({media.start_time}s - {media.end_time}s)",
+                    inline=True,
+                )
             if media.uploader:
                 embed.add_field(name="Channel", value=media.uploader, inline=True)
             embed.set_footer(
@@ -262,7 +350,23 @@ class YTService(BaseService[YTConfig, YTGuildConfig]):
             )
 
             await interaction.followup.send(embed=embed, file=discord_file)
+            logger.info(
+                "Completed /yt download for '%s' (%s, %s) requested by %s in guild %s",
+                media.title,
+                discord_filename,
+                media.formatted_filesize,
+                interaction.user,
+                guild.id,
+            )
 
+        except DownloadTrimError as trim_err:
+            logger.warning(
+                "Invalid cut parameters in /yt download for query '%s' in guild %s: %s",
+                query,
+                guild.id,
+                trim_err,
+            )
+            await interaction.followup.send(f"Invalid cut parameters: {trim_err}")
         except Exception as e:
             logger.error("Failed to process /yt download for query '%s': %s", query, e)
             await interaction.followup.send(
@@ -272,6 +376,7 @@ class YTService(BaseService[YTConfig, YTGuildConfig]):
             if media and media.file_path and media.file_path.exists():
                 try:
                     media.file_path.unlink(missing_ok=True)
+                    logger.debug("Removed temporary download file %s", media.file_path)
                 except Exception as cleanup_err:
                     logger.warning("Failed to remove temporary download file %s: %s", media.file_path, cleanup_err)
 
@@ -283,7 +388,7 @@ class YTService(BaseService[YTConfig, YTGuildConfig]):
         """Returns the list of (command_syntax, description) for YouTube service."""
         return [
             ("/yt play <query>", "Stream audio from YouTube link or search query"),
-            ("/yt download <query> [audio_only]", "Download a YouTube video or audio to your computer"),
+            ("/yt download <query> [audio_only] [start_time] [end_time]", "Download a YouTube video or audio (with optional cut)"),
             ("/yt set_volume <1-100>", "Set default music playback volume percentage for this server"),
             ("/yt config", "View current YouTube playback configuration for this server"),
             ("/yt help", "Display this YouTube command guide"),
@@ -308,6 +413,7 @@ class YTService(BaseService[YTConfig, YTGuildConfig]):
 
     @yt_group.command(name="help", description="Displays available commands and usage for the YouTube music service.")
     async def cmd_yt_help(self, interaction: discord.Interaction):
+        logger.info("Command /yt help invoked by %s", interaction.user)
         embed = self.get_help_embed()
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -317,6 +423,8 @@ class YTService(BaseService[YTConfig, YTGuildConfig]):
         if not guild:
             await interaction.response.send_message("Command only available in servers.", ephemeral=True)
             return
+
+        logger.info("Command /yt config invoked by %s in guild %s", interaction.user, guild.id)
 
         vol_pct = int(self.get_service_volume(guild.id) * 100)
         vol_min, vol_max = self.get_numeric_bounds("volume")
@@ -336,7 +444,7 @@ class YTService(BaseService[YTConfig, YTGuildConfig]):
             name="Available Commands",
             value=(
                 "• `/yt play <query>`: stream audio from YouTube link or search query\n"
-                "• `/yt download <query> [audio_only]`: download video or audio to your computer\n"
+                "• `/yt download <query> [audio_only] [start_time] [end_time]`: download video or audio to your computer\n"
                 "• `/yt set_volume <1-100>`: set music playback volume percentage\n"
                 "• `/yt config`: view current YouTube configuration\n"
                 "• `/yt help`: display YouTube commands help guide"
@@ -355,6 +463,14 @@ class YTService(BaseService[YTConfig, YTGuildConfig]):
 
         vol_min, vol_max = self.get_numeric_bounds("volume")
         if level < vol_min or level > vol_max:
+            logger.warning(
+                "Invalid volume level %d requested by %s in guild %s (allowed: %d-%d)",
+                level,
+                interaction.user,
+                guild.id,
+                vol_min,
+                vol_max,
+            )
             await interaction.response.send_message(
                 f"Volume must be between {vol_min} and {vol_max}.",
                 ephemeral=True,
@@ -370,5 +486,6 @@ class YTService(BaseService[YTConfig, YTGuildConfig]):
                 volume_max=float(self.config.volume_float_max),
             )
         await self.set_guild_setting(guild.id, "volume", level)
+        logger.info("YouTube playback volume set to %d%% in guild %s by %s", level, guild.id, interaction.user)
 
         await interaction.response.send_message(f"Playback volume set to **{level}%**.")

@@ -91,7 +91,14 @@ class TTSEngine:
         )
 
         try:
+            logger.info(
+                "Synthesizing speech (voice=%s, rate=%s, length=%d chars)",
+                selected_voice,
+                selected_rate,
+                len(text),
+            )
             await communicate.save(str(output_path))
+            logger.info("Speech synthesis complete: %s", output_path.name)
             return output_path
         except Exception as e:
             logger.error("Error during speech synthesis (voice: %s): %s", selected_voice, e)
@@ -108,6 +115,12 @@ class TTSEngine:
         """Mixes intro sound with speech using core.ffmpeg.mix_audio_with_intro."""
         mixed_filename = f"tts_mixed_{uuid.uuid4().hex}.mp3"
         mixed_path = self.temp_dir / mixed_filename
+        logger.debug(
+            "Requesting intro mix for speech '%s' with intro '%s' (delay=%.2fs)",
+            speech_path.name,
+            intro_path.name,
+            delay_seconds,
+        )
 
         return await mix_audio_with_intro(
             speech_path=speech_path,
@@ -127,6 +140,7 @@ class TTSEngine:
             try:
                 raw_voices = await edge_tts.list_voices()
                 self._voices_cache = raw_voices
+                logger.info("Fetched and cached %d Edge-TTS voices.", len(raw_voices))
             except Exception as e:
                 logger.error("Failed to fetch available voices from Edge-TTS: %s", e)
                 return []

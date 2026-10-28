@@ -39,8 +39,8 @@ class BaseService(commands.Cog, Generic[TServiceConfig, TGuildConfig]):
         self.config: TServiceConfig = self._initialize_config(config)
 
         # Register the service's per-guild SQLite model automatically
-        if self.guild_config_class is not None and hasattr(self.bot, "guild_store"):
-            self.bot.guild_store.register_model(self.name, self.guild_config_class)
+        if self.guild_config_class is not None and hasattr(self.bot, "guild_persistence"):
+            self.bot.guild_persistence.register_model(self.name, self.guild_config_class)
 
     def _initialize_config(
         self, raw_config: Optional[Union[TServiceConfig, Dict[str, Any]]]
@@ -75,8 +75,8 @@ class BaseService(commands.Cog, Generic[TServiceConfig, TGuildConfig]):
 
     def get_guild_config(self, guild_id: int) -> Optional[TGuildConfig]:
         """Returns the full typed per-guild configuration model from SQLite."""
-        if hasattr(self.bot, "guild_store"):
-            return self.bot.guild_store.get_guild_config(guild_id, self.name)  # type: ignore[return-value]
+        if hasattr(self.bot, "guild_persistence"):
+            return self.bot.guild_persistence.get_guild_config(guild_id, self.name)  # type: ignore[return-value]
         return None
 
     def get_guild_setting(self, guild_id: Optional[int], key: str, default: Any = None) -> Any:
@@ -85,8 +85,8 @@ class BaseService(commands.Cog, Generic[TServiceConfig, TGuildConfig]):
         If the guild has a saved custom override in its SQLite model, that value is returned.
         Otherwise, it falls back to the value from the service's typed config model.
         """
-        if guild_id is not None and hasattr(self.bot, "guild_store"):
-            custom_val = self.bot.guild_store.get(guild_id, self.name, key)
+        if guild_id is not None and hasattr(self.bot, "guild_persistence"):
+            custom_val = self.bot.guild_persistence.get(guild_id, self.name, key)
             if custom_val is not None:
                 return custom_val
 
@@ -94,8 +94,9 @@ class BaseService(commands.Cog, Generic[TServiceConfig, TGuildConfig]):
 
     async def set_guild_setting(self, guild_id: int, key: str, value: Any) -> None:
         """Saves a custom configuration value for a guild via its SQLite model."""
-        if hasattr(self.bot, "guild_store"):
-            await self.bot.guild_store.set(guild_id, self.name, key, value)
+        if hasattr(self.bot, "guild_persistence"):
+            await self.bot.guild_persistence.set(guild_id, self.name, key, value)
+            self.logger.debug("Updated guild %s setting '%s' to %r", guild_id, key, value)
 
     def get_numeric_bounds(
         self, key: str, default_min: Optional[Any] = None, default_max: Optional[Any] = None
@@ -105,8 +106,8 @@ class BaseService(commands.Cog, Generic[TServiceConfig, TGuildConfig]):
 
     async def on_service_load(self) -> None:
         """Hook called immediately after service is loaded."""
-        pass
+        self.logger.debug("Service '%s' load hook executed.", self.name)
 
     async def on_service_unload(self) -> None:
         """Hook called immediately before service is unloaded."""
-        pass
+        self.logger.debug("Service '%s' unload hook executed.", self.name)

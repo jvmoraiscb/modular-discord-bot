@@ -112,6 +112,7 @@ class SoundsService(BaseService[SoundsConfig, SoundsGuildConfig]):
                 if vc.channel and vc.channel.id != target_channel.id:
                     try:
                         await vc.move_to(target_channel)
+                        logger.info("Moved soundboard voice client to channel %s in guild %s", target_channel.id, guild.id)
                     except Exception as e:
                         logger.error("Failed to move to voice channel %s in guild %s: %s", target_channel.id, guild.id, e)
                 return vc
@@ -123,12 +124,15 @@ class SoundsService(BaseService[SoundsConfig, SoundsGuildConfig]):
 
         try:
             connect_timeout = float(self.config.voice_connect_timeout)
-            return await target_channel.connect(reconnect=True, timeout=connect_timeout)
+            connected_vc = await target_channel.connect(reconnect=True, timeout=connect_timeout)
+            logger.info("Connected soundboard voice client to channel %s in guild %s", target_channel.id, guild.id)
+            return connected_vc
         except discord.ClientException:
             vc = guild.voice_client
             if vc and vc.channel and vc.channel.id != target_channel.id:
                 try:
                     await vc.move_to(target_channel)
+                    logger.info("Moved soundboard voice client to channel %s in guild %s", target_channel.id, guild.id)
                 except Exception:
                     pass
             return vc
@@ -169,8 +173,11 @@ class SoundsService(BaseService[SoundsConfig, SoundsGuildConfig]):
             await interaction.response.send_message("Command only available in servers.", ephemeral=True)
             return
 
+        logger.info("Command /sounds play invoked by %s in guild %s for sound '%s'", interaction.user, guild.id, sound)
+
         sound_file = self.find_sound(sound)
         if not sound_file:
+            logger.warning("Requested sound '%s' not found in guild %s", sound, guild.id)
             await interaction.response.send_message(
                 f"Sound `{sound}` not found. Use `/sounds list` to view all available sounds.",
                 ephemeral=True,
@@ -195,6 +202,7 @@ class SoundsService(BaseService[SoundsConfig, SoundsGuildConfig]):
         )
 
         pos = await player.add_track(track)
+        logger.info("Sound '%s' enqueued in guild %s (position=%d)", sound_file.stem, guild.id, pos)
         if pos == 0:
             await interaction.response.send_message(f"Playing sound: **{sound_file.stem}**")
         else:
@@ -202,6 +210,7 @@ class SoundsService(BaseService[SoundsConfig, SoundsGuildConfig]):
 
     @sounds_group.command(name="list", description="Lists all available audio files in data/sounds/.")
     async def cmd_list(self, interaction: discord.Interaction):
+        logger.info("Command /sounds list invoked by %s", interaction.user)
         sounds = self.get_available_sounds()
         if not sounds:
             await interaction.response.send_message(
@@ -324,6 +333,7 @@ class SoundsService(BaseService[SoundsConfig, SoundsGuildConfig]):
                 volume_max=float(self.config.volume_float_max),
             )
         await self.set_guild_setting(guild.id, "volume", level)
+        logger.info("Soundboard volume set to %d%% in guild %s by %s", level, guild.id, interaction.user)
 
         await interaction.response.send_message(f"Soundboard volume set to **{level}%**.")
 
@@ -360,5 +370,6 @@ class SoundsService(BaseService[SoundsConfig, SoundsGuildConfig]):
 
     @sounds_group.command(name="help", description="Displays available commands and usage for the soundboard service.")
     async def cmd_sounds_help(self, interaction: discord.Interaction):
+        logger.info("Command /sounds help invoked by %s", interaction.user)
         embed = self.get_help_embed()
         await interaction.response.send_message(embed=embed, ephemeral=True)

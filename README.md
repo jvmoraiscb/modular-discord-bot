@@ -13,8 +13,8 @@ discord-bot/
 │   ├── ffmpeg.py            # Centralized FFmpeg audio sources, mixing, and stream management
 │   ├── voice_queue.py       # Unified guild audio queue and player (shared across all services)
 │   ├── service_base.py      # BaseService abstract class for modular services
-│   ├── service_manager.py   # Automatic service discovery, loading, and hot reloading
-│   └── guild_store.py       # Thread-safe persistent storage for per-guild settings
+│   ├── service_manager.py     # Automatic service discovery, loading, and hot reloading
+│   └── guild_persistence.py   # Thread-safe persistent storage for per-guild settings
 ├── config/
 │   ├── bot.json             # Root bot settings (prefix, status, auto_disconnect_timeout)
 │   ├── tts.json             # Default configuration for the TTS service

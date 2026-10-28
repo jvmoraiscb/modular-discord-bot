@@ -28,27 +28,30 @@ def configure_ffmpeg(
     """Initializes FFmpeg runtime parameters from the root BotConfig."""
     global _FFMPEG_EXECUTABLE, _STREAM_BEFORE_OPTIONS, _STREAM_OPTIONS, _LOCAL_FILE_OPTIONS
 
-    _FFMPEG_EXECUTABLE = executable
+    _FFMPEG_EXECUTABLE = shutil.which(executable) or executable
     _STREAM_BEFORE_OPTIONS = stream_before_options
     _STREAM_OPTIONS = stream_options
     _LOCAL_FILE_OPTIONS = local_file_options
+    logger.info("Configured FFmpeg executable: %s", _FFMPEG_EXECUTABLE)
 
 
 def set_ffmpeg_path(path: str) -> None:
     """Sets the global FFmpeg executable path configured by the bot core."""
     global _FFMPEG_EXECUTABLE
-    _FFMPEG_EXECUTABLE = path
+    _FFMPEG_EXECUTABLE = shutil.which(path) or path
+    logger.info("Updated FFmpeg executable path: %s", _FFMPEG_EXECUTABLE)
 
 
 def get_ffmpeg_path() -> str:
-    """Returns the current FFmpeg executable path."""
-    return _FFMPEG_EXECUTABLE
+    """Returns the current FFmpeg executable path (resolved to absolute path if available on PATH)."""
+    return shutil.which(_FFMPEG_EXECUTABLE) or _FFMPEG_EXECUTABLE
 
 
 def verify_ffmpeg(executable: Optional[str] = None) -> bool:
     """Verifies that the FFmpeg executable is accessible and runnable."""
     bin_path = executable or _FFMPEG_EXECUTABLE
     if shutil.which(bin_path):
+        logger.debug("Verified FFmpeg binary on PATH: %s", bin_path)
         return True
     try:
         res = subprocess.run(
@@ -56,8 +59,12 @@ def verify_ffmpeg(executable: Optional[str] = None) -> bool:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        return res.returncode == 0
-    except Exception:
+        ok = res.returncode == 0
+        if not ok:
+            logger.warning("FFmpeg verification failed with return code %d for '%s'", res.returncode, bin_path)
+        return ok
+    except Exception as e:
+        logger.warning("FFmpeg verification raised exception for '%s': %s", bin_path, e)
         return False
 
 
@@ -88,6 +95,11 @@ def create_audio_source(
     )
 
     clamped_vol = max(float(volume_min), min(float(volume), float(volume_max)))
+    logger.debug(
+        "Created FFmpeg audio source (is_stream=%s, volume=%.2f)",
+        is_stream,
+        clamped_vol,
+    )
     return discord.PCMVolumeTransformer(pcm_audio, volume=clamped_vol)
 
 
@@ -104,6 +116,7 @@ async def mix_audio_with_intro(
 ) -> Path:
     """Mixes an intro sound effect with speech audio using the core FFmpeg executable."""
     if not intro_path.exists():
+        logger.warning("Intro sound file '%s' not found; skipping intro mix.", intro_path)
         return speech_path
 
     sr = int(sample_rate)
@@ -111,6 +124,13 @@ async def mix_audio_with_intro(
     speech_vol = float(speech_volume)
     lim = float(limiter_limit)
     delay_ms = max(0, int(delay_seconds * 1000))
+
+    logger.info(
+        "Mixing speech '%s' with intro '%s' (delay=%dms)",
+        speech_path.name,
+        intro_path.name,
+        delay_ms,
+    )
 
     filter_complex = (
         f"[0:a]aresample={sr},aformat=sample_fmts=s16:channel_layouts=stereo,volume={intro_vol}[a0];"
@@ -144,7 +164,64 @@ async def mix_audio_with_intro(
             return speech_path
 
         speech_path.unlink(missing_ok=True)
+        logger.info("Successfully mixed intro audio into '%s'", output_path.name)
         return output_path
     except Exception as e:
         logger.error("Exception during FFmpeg audio mixing: %s", e)
         return speech_path
+
+
+def trim_media_file(
+    input_path: Path,
+    output_path: Path,
+    *,
+    start_seconds: int,
+    end_seconds: int,
+) -> Path:
+    """Synchronously trims a media file between start_seconds and end_seconds using the core FFmpeg executable."""
+    logger.info(
+        "Trimming media '%s' -> '%s' (start=%ds, end=%ds)",
+        input_path.name,
+        output_path.name,
+        start_seconds,
+        end_seconds,
+    )
+    cmd = [
+        _FFMPEG_EXECUTABLE,
+        "-y",
+        "-ss", str(start_seconds),
+        "-to", str(end_seconds),
+        "-i", str(input_path),
+        "-c", "copy",
+        "-loglevel", "error",
+        str(output_path),
+    ]
+    res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    if res.returncode != 0 or not output_path.exists() or output_path.stat().st_size == 0:
+        logger.warning(
+            "Fast stream-copy trim failed or produced empty file for '%s'; falling back to re-encoding.",
+            input_path.name,
+        )
+        fallback_cmd = [
+            _FFMPEG_EXECUTABLE,
+            "-y",
+            "-ss", str(start_seconds),
+            "-to", str(end_seconds),
+            "-i", str(input_path),
+            "-loglevel", "error",
+            str(output_path),
+        ]
+        res_fb = subprocess.run(fallback_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        if res_fb.returncode != 0:
+            err_msg = res_fb.stderr.decode("utf-8", errors="replace")
+            logger.error("FFmpeg media trim failed: %s", err_msg)
+            raise RuntimeError(f"Failed to trim media file: {err_msg}")
+
+    input_path.unlink(missing_ok=True)
+    logger.info(
+        "Finished trimming media '%s' (%d bytes)",
+        output_path.name,
+        output_path.stat().st_size if output_path.exists() else 0,
+    )
+    return output_path
+

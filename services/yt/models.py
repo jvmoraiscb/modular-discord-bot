@@ -9,6 +9,11 @@ from core.config import BaseConfigModel, BaseGuildConfig
 from core.voice_queue import format_duration
 
 
+class DownloadTrimError(ValueError):
+    """Raised when requested start/end trim timestamps are out of bounds."""
+    pass
+
+
 @dataclass
 class YTConfig(BaseConfigModel):
     """Typed model representing `config/yt.json`."""
@@ -32,6 +37,7 @@ class YTConfig(BaseConfigModel):
     max_filename_length: int
     download_search_prefix: str
     video_merge_format: str
+    min_start_time: int
     source_address: str
     player_clients: List[str]
     cookie_player_clients: List[str]
@@ -77,6 +83,8 @@ class DownloadedMedia:
     uploader: str
     webpage_url: str
     is_audio: bool
+    start_time: Optional[int] = None
+    end_time: Optional[int] = None
 
     @property
     def filename(self) -> str:
@@ -94,4 +102,3 @@ class DownloadedMedia:
     @property
     def formatted_filesize_mb(self) -> str:
         return self.formatted_filesize
-
